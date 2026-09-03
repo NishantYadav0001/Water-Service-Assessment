@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jal Seva Aankalan Portal</title>
+    <link rel="stylesheet" href="styles.css?v=1788441262">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="translations.js"></script>
+</head>
+
+<body>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Auth Layout -->
+    <div id="auth-layout" class="layout-container active">
+        <div class="auth-box">
+            <div class="language-selector-auth">
+                <select id="languageSelectorAuth" aria-label="Language" class="lang-select"></select>
+            </div>
+            <div class="brand">
+                <h1 data-i18n="app_title">Jal Seva Aankalan</h1>
+                <p data-i18n="app_subtitle">Gram Panchayat Portal</p>
+            </div>
+
+            <!-- Login View -->
+            <div id="login-view" class="view active">
+                <h2 data-i18n="login">Login</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="loginEmail" data-i18n="gmail_address">Gmail Address</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPwd" data-i18n="password">Password</label>
+                        <input type="password" id="loginPwd" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width mt-3" data-i18n="login">Login</button>
+                    <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
+                        <span data-i18n="dont_have_account">Don't have an account?</span> <a href="#" id="show-register" style="color: var(--primary);" data-i18n="register_here">Register
+                            here</a>
+                    </p>
+                </form>
+            </div>
+
+            <!-- Registration View -->
+            <div id="register-view" class="view hidden">
+                <h2 data-i18n="register">Register</h2>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label data-i18n="role">Role</label>
+                        <select id="reg-role" required>
+                            <option value="" data-i18n="select_role">Select Role</option>
+                            <option value="GP User" data-i18n="gp_user">Gram Panchayat User</option>
+                            <option value="District Admin" data-i18n="district_admin">District Admin</option>
+                            <option value="State Admin" data-i18n="state_admin">State Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group mt-2 hidden" id="reg-location-group">
+                        <label data-i18n="assign_location">Assign Location</label>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="state">State</label>
+                                <select id="reg-state" required>
+                                    <option value="" data-i18n="select_state">Select State</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="reg-district-group">
+                                <label data-i18n="district">District</label>
+                                <select id="reg-district" disabled>
+                                    <option value="" data-i18n="select_district">Select District</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="reg-subdistrict-group">
+                                <label data-i18n="subdistrict">Sub-District</label>
+                                <select id="reg-subdistrict" disabled>
+                                    <option value="" data-i18n="select_subdistrict">Select Sub-District</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="reg-village-group">
+                                <label data-i18n="village">Village</label>
+                                <select id="reg-village" disabled>
+                                    <option value="" data-i18n="select_village">Select Village</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group mt-2">
+                        <label for="regEmail" data-i18n="gmail_address">Gmail Address</label>
+                        <input type="email" id="regEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regIdProof" data-i18n="upload_id_proof">Upload ID Proof</label>
+                        <input type="file" id="regIdProof" accept="image/*" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="regPwd" data-i18n="password">Password</label>
+                        <input type="password" id="regPwd" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width mt-3" data-i18n="register">Register</button>
+                    <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
+                        <span data-i18n="already_have_account">Already have an account?</span> <a href="#" id="show-login" style="color: var(--primary);" data-i18n="login_here">Login
+                            here</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Layout -->
+    <div id="app-layout" class="layout-container hidden">
+        <header class="app-header">
+            <div class="header-brand">
+                <h1 data-i18n="app_title">Jal Seva Aankalan</h1>
+            </div>
+            <div class="header-user">
+                <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage Users</button>
+                <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
+                <span id="current-user-name">User</span>
+                <button id="logout-btn" class="btn-outline btn-small" data-i18n="logout">Logout</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- User Management View -->
+            <div id="user-management-view" class="view hidden">
+                <div class="dashboard-header">
+                    <h2 data-i18n="user_management_dashboard" id="user-management-title">User Management Dashboard</h2>
+                </div>
+                <div class="card mt-3">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <h3 data-i18n="pending_users" style="margin: 0;">Pending User Registrations</h3>
+                        <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
+                            <input type="text" id="pending-users-search" placeholder="Search pending users..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="pending-users-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="name">Name</th>
+                                    <th data-i18n="gmail_address">Gmail</th>
+                                    <th data-i18n="role_requested">Role Requested</th>
+                                    <th data-i18n="location">Location</th>
+                                    <th data-i18n="action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <h3 data-i18n="all_users" style="margin: 0;">All Users</h3>
+                        <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
+                            <input type="text" id="all-users-search" placeholder="Search users..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="all-users-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="name">Name</th>
+                                    <th data-i18n="gmail_address">Gmail</th>
+                                    <th data-i18n="role">Role</th>
+                                    <th data-i18n="location">Location</th>
+                                    <th data-i18n="status">Status</th>
+                                    <th data-i18n="action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- All Admins Card -->
+                <div class="card mt-3" id="all-admins-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                        <h3 data-i18n="all_admins" style="margin: 0;">All Admins</h3>
+                        <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
+                            <input type="text" id="all-admins-search" placeholder="Search admins..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table" id="all-admins-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="name">Name</th>
+                                    <th data-i18n="gmail_address">Gmail</th>
+                                    <th data-i18n="role">Role</th>
+                                    <th data-i18n="location">Location</th>
+                                    <th data-i18n="status">Status</th>
+                                    <th data-i18n="action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view active">
+                <div class="dashboard-header">
+                    <h2 data-i18n="dashboard">Dashboard</h2>
+                </div>
+
+                <div class="card filter-card">
+                    <h3 data-i18n="filter_records">Filter Records</h3>
+
+                    <!-- Loading Spinner for Locations -->
+                    <div class="location-loader" id="dashboard-location-loader">
+                        <div class="spinner"></div>
+                        <span data-i18n="loading_geo">Loading geographic dataset...</span>
+                    </div>
+
+                    <div class="form-grid cols-4 hidden" id="dashboard-location-fields">
+                        <div class="form-group">
+                            <label data-i18n="state">State</label>
+                            <select id="filter-state">
+                                <option value="" data-i18n="all">All</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="district">District</label>
+                            <select id="filter-district" disabled>
+                                <option value="" data-i18n="all">All</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="subdistrict">Sub-District</label>
+                            <select id="filter-subdistrict" disabled>
+                                <option value="" data-i18n="all">All</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="village">Village</label>
+                            <select id="filter-village" disabled>
+                                <option value="" data-i18n="all">All</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-actions mt-3">
+                    <button class="btn-outline" id="btn-view-drafts" data-i18n="view_drafts">View Unfinished Forms</button>
+                    <button class="btn-primary" id="btn-new-form" data-i18n="start_new_form">Start New Assessment Form</button>
+                    <button class="btn-outline hidden" id="search-records-btn" data-i18n="search">Search</button>
+                </div>
+
+                <div class="card mt-3">
+                    <h3 id="records-card-title" data-i18n="assessment_records">Assessment Records</h3>
+                    <div class="table-responsive">
+                        <table class="data-table" id="records-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="date">Date</th>
+                                    <th data-i18n="village_name">Village Name</th>
+                                    <th data-i18n="status">Status</th>
+                                    <th data-i18n="action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assessment Form View -->
+            <div id="form-view" class="view hidden">
+                <div class="form-header">
+                    <button class="btn-outline btn-small" id="back-to-dashboard" data-i18n="back_dashboard">← Back to Dashboard</button>
+                    <h2 id="form-title-mode" data-i18n="new_assessment">New Assessment</h2>
+                </div>
+
+                <!-- Rejection Banner (Hidden by default) -->
+                <div id="rejection-alert" class="alert hidden" style="background-color: #fed7d7; border: 1px solid #f56565; color: #c53030; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+                    <strong data-i18n="form_rejected">Form Rejected:</strong> <span id="rejection-reason-text"></span>
+                </div>
+
+                <form id="assessment-form">
+                    <input type="hidden" id="recordId" value="">
+
+                    <!-- Institutional Validation -->
+                    <section class="form-section">
+                        <h3 data-i18n="inst_validation">Institutional Validation</h3>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="q1_vwsc">Q1: Discussed in VWSC meeting?</label>
+                                <select id="q1-vwsc" required>
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Yes" data-i18n="yes">Yes</option>
+                                    <option value="No" data-i18n="no">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="q2_gramsabha">Q2: Presented & deliberated in Gram Sabha?</label>
+                                <select id="q2-gramsabha" required>
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Yes" data-i18n="yes">Yes</option>
+                                    <option value="No" data-i18n="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="declaration-box mt-3">
+                            <label class="checkbox-label" id="declaration-label" style="opacity: 0.5;">
+                                <input type="checkbox" id="validation-declaration" disabled required>
+                                <span data-i18n="declaration">I hereby certify that the Jal Seva Aankalan for all the villages in the Gram panchayat has been discussed in the VWSC meeting and Gram Sabha and the information provided is true to the best of my knowledge.</span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <!-- Scripts -->
+                    <section class="form-section">
+                        <h3 data-i18n="secA">Section A - Basic Information</h3>
+                        <!-- Geographic Header -->
+                        <div class="location-loader" id="form-location-loader">
+                            <div class="spinner"></div>
+                            <span data-i18n="loading_geo">Loading geographic dataset...</span>
+                        </div>
+
+                        <div class="form-grid cols-4 hidden" id="form-location-fields">
+                            <div class="form-group">
+                                <label data-i18n="state">State <span class="text-danger">*</span></label>
+                                <select id="secA-state" required>
+                                    <option value="" data-i18n="select_state">Select State</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="district">District <span class="text-danger">*</span></label>
+                                <select id="secA-district" required disabled>
+                                    <option value="" data-i18n="select_district">Select District</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="subdistrict">Sub-District <span class="text-danger">*</span></label>
+                                <select id="secA-subdistrict" required disabled>
+                                    <option value="" data-i18n="select_subdistrict">Select Sub-District</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="village">Village <span class="text-danger">*</span></label>
+                                <select id="secA-village" required disabled>
+                                    <option value="" data-i18n="select_village">Select Village</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-grid cols-3 mt-3">
+                            <div class="form-group">
+                                <label data-i18n="date_discussion">Date of Discussion <span class="text-danger">*</span></label>
+                                <input type="date" id="secA-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="reporting_year">Reporting Year <span class="text-danger">*</span></label>
+                                <select id="secA-year" required>
+                                    <option value="2025-26">2025-26</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="total_hhs">Total Households (HHs) in village</label>
+                                <input type="number" id="secA-totalHHs" min="1" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label data-i18n="habitations">Habitations</label>
+                            <select id="secA-habitations" multiple>
+                            </select>
+                            <button type="button" class="btn-outline btn-small mt-2" id="add-habitation-btn"
+                                style="width: max-content" data-i18n="add_habitation">+ Add Missing Habitation</button>
+                        </div>
+
+                        <div class="table-responsive mt-3">
+                            <table class="data-table" id="habitations-fhtc-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="habitation_name">Habitation Name</th>
+                                        <th data-i18n="hhs_no_fhtc">No. of HHs not having FHTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label data-i18n="members_present">Members Present</label>
+                            <div class="checkbox-grid">
+                                <label><input type="checkbox" name="membersPresent" value="Sarpanch"> <span data-i18n="sarpanch">Sarpanch</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Panchayat Secretary">
+                                    <span data-i18n="panchayat_sec">Panchayat Secretary</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="VWSC Chairperson"> <span data-i18n="vwsc_chair">VWSC Chair</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Pump Operator"> <span data-i18n="pump_operator">Pump Operator</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="ASHA"> <span data-i18n="asha">ASHA Worker</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Anganwadi Worker"> <span data-i18n="anganwadi">Anganwadi Worker</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="FTK Woman"> <span data-i18n="ftk_woman">FTK Woman</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="SC/ST rep"> <span data-i18n="sc_st">SC/ST rep</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Other"> <span data-i18n="other">Other</span></label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section B -->
+                    <section class="form-section">
+                        <h3 data-i18n="secB">Section B - Functionality Assessment</h3>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="water_schedule">Water supply schedule</label>
+                                <select id="secB-schedule" required>
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="24x7" data-i18n="schedule_24x7">24x7</option>
+                                    <option value="Daily Twice" data-i18n="daily_twice">Daily Twice</option>
+                                    <option value="Daily once" data-i18n="daily_once">Daily once</option>
+                                    <option value="Alternate day" data-i18n="alternate_day">Alternate day</option>
+                                    <option value="Once in 3 days" data-i18n="once_3_days">Once in 3 days</option>
+                                    <option value="Weekly" data-i18n="weekly">Weekly</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="charges_levied">Water user charges levied?</label>
+                                <select id="secB-chargesLevied" required>
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Yes" data-i18n="yes">Yes</option>
+                                    <option value="No" data-i18n="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-grid cols-2 mt-3" id="charge-details">
+                            <div class="form-group">
+                                <label data-i18n="charge_type">Service charge type</label>
+                                <select id="secB-chargeType">
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Flat" data-i18n="flat_rate">Flat rate ₹/month</option>
+                                    <option value="Volumetric" data-i18n="volumetric">Volumetric ₹/KL</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="charge_amount">Service charge amount (Max 3 digits)</label>
+                                <input type="number" id="secB-chargeAmount" max="999">
+                                <span class="text-warning hidden" id="charge-warning" data-i18n="warning_high">Warning: Value is high (> 150)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-grid cols-3 mt-3">
+                            <div class="form-group">
+                                <label data-i18n="total_schools_awcs">Total Schools & AWCs count</label>
+                                <input type="number" id="secB-schoolsTotal">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="schools_piped">Schools & AWCs with piped water</label>
+                                <input type="number" id="secB-schoolsPiped">
+                                <span class="text-danger hidden" id="schools-error">Cannot exceed total count</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label data-i18n="water_source">Source of water supply</label>
+                            <div class="checkbox-grid">
+                                <label><input type="checkbox" name="waterSource" value="Bulk Water Transfer"> <span data-i18n="bulk_water">Bulk Water Transfer</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Surface Water"> <span data-i18n="surface_water">Surface Water</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Ground Water"> <span data-i18n="ground_water">Ground Water</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Spring"> <span data-i18n="spring">Spring</span></label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section C -->
+                    <section class="card form-section">
+                        <h3 data-i18n="secC">Section C - Operational Assessment</h3>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="avg_days_supplied">Avg. days supplied per month</label>
+                                <input type="number" id="secC-avgDays" max="30">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive mt-3">
+                            <label data-i18n="reasons_disruptions">Reasons for Disruptions</label>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="reason">Reason</th>
+                                        <th data-i18n="no_times">No. of times</th>
+                                        <th data-i18n="resolution_days">Resolution time (days)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <select name="disrupt_reason" class="table-input"
+                                                style="padding: 0.375rem;">
+                                                <option value="" data-i18n="select_reason">Select Reason</option>
+                                                <option value="Power cut" data-i18n="power_cut">Power cut</option>
+                                                <option value="Low voltage" data-i18n="low_voltage">Low voltage</option>
+                                                <option value="Pipeline breakage" data-i18n="pipe_breakage">Pipeline breakage</option>
+                                                <option value="Pump failure" data-i18n="pump_failure">Pump failure</option>
+                                                <option value="Contamination" data-i18n="contamination">Contamination</option>
+                                                <option value="Other" data-i18n="other">Other</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="number" name="disrupt_times" class="table-input"></td>
+                                        <td><input type="number" name="disrupt_days" class="table-input"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-responsive mt-3">
+                            <label data-i18n="adequacy">Adequacy</label>
+                            <table class="data-table" id="habitations-adequacy-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="habitation_name">Habitation Name</th>
+                                        <th data-i18n="hhs_inadequate">No. of HHs not receiving adequate water (≥ 55 LPCD)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h4 class="mt-3" data-i18n="wq_testing">Water Quality Testing Counts (per month)</h4>
+                        <div class="form-grid cols-3">
+                            <div class="form-group">
+                                <label data-i18n="households">Households</label>
+                                <input type="number" id="secC-wq-hh">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="awcs">AWCs</label>
+                                <input type="number" id="secC-wq-awc">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="schools">Schools</label>
+                                <input type="number" id="secC-wq-schools">
+                            </div>
+                        </div>
+                        <div class="form-group mt-2">
+                            <label data-i18n="remedial_time">Remedial action turnaround time (days)</label>
+                            <input type="number" id="secC-remedialTime">
+                        </div>
+                    </section>
+
+                    <!-- Section D -->
+                    <section class="card form-section">
+                        <h3 data-i18n="secD">Section D - Maintenance Assessment</h3>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="leak_methods">Leak detection methods</label>
+                                <div class="checkbox-grid">
+                                    <label><input type="checkbox" name="leakDetect" value="Transact walk"> <span data-i18n="transact_walk">Transact walk</span></label>
+                                    <label><input type="checkbox" name="leakDetect" value="Visual detection"> <span data-i18n="visual_detection">Visual detection</span></label>
+                                    <label><input type="checkbox" name="leakDetect" value="Community Surveillance"> <span data-i18n="community_surv">Community Surveillance</span></label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="minor_repair">Minor repair responsibility</label>
+                                <select id="secD-repairResp">
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="O&M Contractor" data-i18n="om_contractor">O&M Contractor</option>
+                                    <option value="PHED" data-i18n="phed">PHED</option>
+                                    <option value="GP/VWSC" data-i18n="gp_vwsc">GP/VWSC</option>
+                                    <option value="Other" data-i18n="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group mt-3">
+                            <label data-i18n="tank_cleaning">Frequency of tank cleaning</label>
+                            <select id="secD-tankCleaning">
+                                <option value="" data-i18n="select">Select</option>
+                                <option value="Once in 6 months" data-i18n="6_months">Once in 6 months</option>
+                                <option value="Once in 12 months" data-i18n="12_months">Once in 12 months</option>
+                                <option value="Not yet done" data-i18n="not_done">Not yet done</option>
+                            </select>
+                        </div>
+                    </section>
+
+                    <!-- Section E -->
+                    <section class="card form-section">
+                        <h3 data-i18n="secE">Section E - Village Management Assessment</h3>
+                        <div class="form-grid cols-2">
+                            <div class="form-group">
+                                <label data-i18n="source_sustenance">Source sustenance structures available?</label>
+                                <select id="secE-recharge">
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Yes" data-i18n="yes">Yes</option>
+                                    <option value="No" data-i18n="no">No</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="trained_operator">Trained Operator available?</label>
+                                <select id="secE-operator">
+                                    <option value="" data-i18n="select">Select</option>
+                                    <option value="Yes" data-i18n="yes">Yes</option>
+                                    <option value="No" data-i18n="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group mt-2">
+                            <label data-i18n="cert_details">Certification details</label>
+                            <input type="text" id="secE-certifications" data-i18n-placeholder="ph_cert" placeholder="e.g. Skill India">
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label data-i18n="gp_issues">Checklist of GP Issues</label>
+                            <div class="checkbox-grid">
+                                <label><input type="checkbox" name="gpIssues" value="Quality of water"> <span data-i18n="quality_water">Quality of water</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="No operator"> <span data-i18n="no_operator_issue">No operator</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="FTK not procured"> <span data-i18n="ftk_not_procured">FTK not procured</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Bleaching powder not procured"> <span data-i18n="bleach_not_procured">Bleaching powder not procured</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Leakages"> <span data-i18n="leakages">Leakages</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Grey water management"> <span data-i18n="grey_water">Grey water management</span></label>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Sticky Footer Actions -->
+                    <div class="form-actions mt-3" id="form-actions-bar">
+                        <div id="gp-actions" style="display: flex; gap: 1rem;">
+                            <button type="button" class="btn-outline" id="save-draft-btn" data-i18n="save_draft">Save Draft</button>
+                            <button type="button" class="btn-outline" id="save-exit-btn" data-i18n="save_exit">Save and Exit</button>
+                            <button type="submit" class="btn-primary" id="submit-assessment-btn" data-i18n="submit_assessment">Submit Assessment</button>
+                        </div>
+                        
+                        <div id="admin-actions" class="hidden">
+                            <button type="button" class="btn-outline text-danger" id="reject-assessment-btn" data-i18n="reject">Reject</button>
+                            <button type="button" class="btn-primary" id="approve-assessment-btn" data-i18n="approve">Approve</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal hidden">
+        <div class="modal-content text-center">
+            <div class="success-icon mb-3">✓</div>
+            <h2 class="mb-3" data-i18n="success">Success!</h2>
+            <p class="mb-3 text-muted" data-i18n="success_msg">Assessment record has been finalized and submitted successfully.</p>
+            <button class="btn-primary" id="close-modal-btn" data-i18n="return_dashboard">Return to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- User Details Modal -->
+    <div id="id-proof-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px; text-align: left;">
+            <h3 data-i18n="user_details">User Details</h3>
+            <div id="modal-user-details" style="margin-top: 1rem; line-height: 1.5; font-size: 0.95rem;">
+                <p><strong>Email:</strong> <span id="modal-email"></span></p>
+                <p><strong>Role:</strong> <span id="modal-role"></span></p>
+                <p><strong>Location:</strong> <span id="modal-location"></span></p>
+            </div>
+            <h4 style="margin-top: 1.5rem;" data-i18n="upload_id_proof">ID Proof</h4>
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; text-align: center;">
+                <img id="id-proof-image" src="" alt="ID Proof" style="max-width: 100%; max-height: 40vh; object-fit: contain;">
+                <p id="no-id-text" class="hidden text-muted" style="margin:0;">No ID Proof Uploaded</p>
+            </div>
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <button type="button" class="btn-primary" id="close-id-modal-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js?v=1788441262"></script>
+</body>
+
+</html>
