@@ -12,7 +12,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isLocationDataLoaded = false;
     let isRegistering = false;
     let isFormDirty = false;
-    const DB_ASSESSMENTS = 'db_assessments';
+    const DB_ASSESSMENTS_PREFIX = 'db_assessments_'; // BUG-05: user-scoped storage key
+
+    // BUG-05: Helper to get user-scoped localStorage key
+    function getStorageKey() {
+        return currentUser ? DB_ASSESSMENTS_PREFIX + currentUser.email : 'db_assessments_guest';
+    }
+
+    // BUG-06: Sanitize user input before inserting into innerHTML
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        const div = document.createElement('div');
+        div.appendChild(document.createTextNode(String(str)));
+        return div.innerHTML;
+    }
+
+    // BUG-02: Safe translation helper that never throws
+    function safeT(key, fallback) {
+        try {
+            if (window.t) return window.t(key) || fallback || key;
+        } catch(e) { /* ignore */ }
+        return fallback || key;
+    }
 
     // Views
     const authLayout = document.getElementById('auth-layout');
@@ -33,7 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnNewForm = document.getElementById('btn-new-form');
     if (btnNewForm) {
         btnNewForm.addEventListener('click', () => {
-            const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+            // BUG-09: user-scoped draft count
+            const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
             const draftCount = assessments.filter(a => a.status === 'Draft').length;
             if (draftCount >= 2) {
                 alert('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.');
@@ -86,6 +108,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (view === 'dashboard') {
+            // BUG-23: Reset draft filter when returning to dashboard
+            showDraftsOnly = false;
+            const draftsBtn = document.getElementById('btn-view-drafts');
+            if (draftsBtn) {
+                draftsBtn.textContent = safeT('view_drafts', 'View Unfinished Forms');
+                draftsBtn.classList.replace('btn-secondary', 'btn-outline');
+            }
+            const recordsTitle = document.getElementById('records-card-title');
+            if (recordsTitle) recordsTitle.textContent = safeT('assessment_records', 'Assessment Records');
+
             dashboardView.classList.remove('hidden');
             dashboardView.classList.add('active');
             renderDashboard();
@@ -199,20 +231,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         showApp();
     }
 
-    async function initSession() {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            await loadCurrentUserProfile(session.user.email);
-        } else {
-            showAuth();
-        }
-    }
+    // BUG-03: Consolidated session init — use onAuthStateChange only to prevent double-load race condition
+    let sessionInitialized = false;
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-            await loadCurrentUserProfile(session.user.email);
+        if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+            if (!sessionInitialized || event === 'SIGNED_IN') {
+                sessionInitialized = true;
+                await loadCurrentUserProfile(session.user.email);
+            }
         } else if (event === 'SIGNED_OUT') {
+            sessionInitialized = false;
             currentUser = null;
+            showAuth();
+        } else if (event === 'INITIAL_SESSION' && !session) {
             showAuth();
         }
     });
@@ -485,8 +517,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
         }
         
-        // Fetch all assessments from localStorage since that is where they are saved
-        let assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        // BUG-05: Fetch user-scoped assessments from localStorage
+        let assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
         let filtered = assessments;
         
         // Map the data structure to match what the rest of the code expects
@@ -494,11 +526,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             id: a.id,
             status: a.status,
             payload: a.data,
-            village: a.data.village,
-            sub_district: a.data.subdistrict,
-            district: a.data.district,
-            state: a.data.state,
-            user_id: currentUser.email // We don't save user_id in localStorage currently, but we can mock it or ignore it since GP users only see their own local storage
+            village: a.data ? a.data.village : '',
+            sub_district: a.data ? a.data.subdistrict : '',
+            district: a.data ? a.data.district : '',
+            state: a.data ? a.data.state : '',
+            updatedAt: a.updatedAt,
+            submittedAt: a.submittedAt,
+            user_id: currentUser.email
         }));
 
         // Role-based filtering
@@ -528,37 +562,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         
         if (filtered.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${window.t('no_records')}</td></tr>`;
+            // BUG-02: use safeT instead of raw window.t()
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
             return;
         }
         
         filtered.forEach(record => {
             const tr = document.createElement('tr');
             
+            // BUG-02 + BUG-13: Safe translation + correct badge CSS classes
             let statusBadge = '';
-            let displayStatus = window.t(record.status.toLowerCase()) || record.status;
+            let displayStatus = safeT(record.status.toLowerCase(), record.status);
             
             if (record.status === 'Submitted') {
-                statusBadge = 'bg-primary';
+                statusBadge = 'badge-submitted';
                 if (currentUser.role === 'GP User') {
-                    displayStatus = window.t ? window.t('pending') || 'Pending' : 'Pending';
-                    statusBadge = 'bg-warning text-dark';
+                    displayStatus = safeT('pending', 'Pending');
+                    statusBadge = 'badge-draft';
                 }
             }
-            else if (record.status === 'Approved') statusBadge = 'bg-success';
-            else if (record.status === 'Rejected') statusBadge = 'bg-danger';
-            else statusBadge = 'bg-warning text-dark';
+            else if (record.status === 'Approved') statusBadge = 'badge-approved';
+            else if (record.status === 'Rejected') statusBadge = 'badge-rejected';
+            else statusBadge = 'badge-draft';
             
             let actionBtn = '';
+            // BUG-02 + BUG-06: Safe translations + escaped record IDs
+            const safeId = escapeHtml(record.id);
             if (record.status === 'Draft' && currentUser.role === 'GP User') {
                 actionBtn = `
-                    <button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="edit">${window.t('edit') || 'Edit'}</button>
-                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${record.id}" data-i18n="delete">${window.t('delete') || 'Delete'}</button>
+                    <button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>
+                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>
                 `;
             } else if (record.status === 'Submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
-                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="review">${window.t('review') || 'Review'}</button>`;
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
             } else {
-                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="view">${window.t('view') || 'View'}</button>`;
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
             }
             
             // Logic for date: if draft, show updatedAt, else show date_discussion
@@ -571,10 +609,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 displayDate = record.payload.date_discussion;
             }
             
+            // BUG-06: Escape user-supplied village name
             tr.innerHTML = `
-                <td>${displayDate}</td>
-                <td>${record.village || 'N/A'}</td>
-                <td><span class="badge ${statusBadge}" data-i18n="${record.status.toLowerCase()}">${displayStatus}</span></td>
+                <td>${escapeHtml(displayDate)}</td>
+                <td>${escapeHtml(record.village) || 'N/A'}</td>
+                <td><span class="badge ${statusBadge}" data-i18n="${escapeHtml(record.status.toLowerCase())}">${escapeHtml(displayStatus)}</span></td>
                 <td>${actionBtn}</td>
             `;
             tbody.appendChild(tr);
@@ -589,12 +628,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         document.querySelectorAll('.delete-record').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                if (confirm(window.t ? window.t('delete_confirm') || 'Are you sure you want to delete this draft?' : 'Are you sure you want to delete this draft?')) {
+                // BUG-02 + BUG-05: Safe translations + user-scoped storage
+            if (confirm(safeT('delete_confirm', 'Are you sure you want to delete this draft?'))) {
                     const id = e.target.getAttribute('data-id');
-                    let localAssessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+                    let localAssessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
                     localAssessments = localAssessments.filter(a => a.id !== id);
-                    localStorage.setItem(DB_ASSESSMENTS, JSON.stringify(localAssessments));
-                    showToast(window.t ? window.t('draft_deleted') || 'Draft Deleted!' : 'Draft Deleted!');
+                    localStorage.setItem(getStorageKey(), JSON.stringify(localAssessments));
+                    showToast(safeT('draft_deleted', 'Draft Deleted!'));
                     renderDashboard();
                 }
             });
@@ -764,6 +804,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // BUG-28: Toggle charge details visibility based on "charges levied" selection
+    const chargesLeviedSelect = document.getElementById('secB-chargesLevied');
+    const chargeDetailsDiv = document.getElementById('charge-details');
+    chargesLeviedSelect.addEventListener('change', () => {
+        if (chargesLeviedSelect.value === 'No') {
+            chargeDetailsDiv.classList.add('hidden');
+            document.getElementById('secB-chargeType').required = false;
+            document.getElementById('secB-chargeAmount').required = false;
+        } else {
+            chargeDetailsDiv.classList.remove('hidden');
+            document.getElementById('secB-chargeType').required = true;
+            document.getElementById('secB-chargeAmount').required = true;
+        }
+    });
+
+    // BUG-27: Validate schools piped cannot exceed total
+    const schoolsTotalInput = document.getElementById('secB-schoolsTotal');
+    const schoolsPipedInput = document.getElementById('secB-schoolsPiped');
+    const schoolsError = document.getElementById('schools-error');
+
+    function validateSchoolsPiped() {
+        const total = parseInt(schoolsTotalInput.value) || 0;
+        const piped = parseInt(schoolsPipedInput.value) || 0;
+        if (piped > total && total > 0) {
+            schoolsError.classList.remove('hidden');
+            schoolsPipedInput.setCustomValidity('Cannot exceed total count');
+        } else {
+            schoolsError.classList.add('hidden');
+            schoolsPipedInput.setCustomValidity('');
+        }
+    }
+    schoolsTotalInput.addEventListener('input', validateSchoolsPiped);
+    schoolsPipedInput.addEventListener('input', validateSchoolsPiped);
+
     function setFormReadOnly(isReadOnly) {
         const form = document.getElementById('assessment-form');
         const elements = form.querySelectorAll('input, select, textarea, button:not(#back-to-dashboard)');
@@ -791,7 +865,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         form.removeEventListener('change', markFormDirty);
         form.addEventListener('input', markFormDirty);
         form.addEventListener('change', markFormDirty);
-        document.getElementById('secA-date').max = new Date().toISOString().split('T')[0];
+        // BUG-19: Use local date to avoid timezone issues
+        document.getElementById('secA-date').max = new Date().toLocaleDateString('en-CA');
         habSelect.innerHTML = ''; // clear habitations
         checkValidationHeader();
         renderHabitationTables();
@@ -850,47 +925,49 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        switchAppView('assessment');
+        // BUG-20: Removed duplicate switchAppView('assessment') call — already called at top of function
     }
 
     function collectFormData() {
         const form = document.getElementById('assessment-form');
         
-        // Temporarily enable all fields to ensure FormData captures everything (especially in Preview Mode)
+        // BUG-04: Use try/finally to guarantee re-disabling fields
         const disabledElements = form.querySelectorAll(':disabled');
         disabledElements.forEach(el => el.disabled = false);
         
-        const formData = new FormData(form);
         const fullData = {};
-        
-        // Process FormData for named elements
-        formData.forEach((value, key) => {
-            if(!fullData[key]){
-                fullData[key] = value;
-            } else {
-                fullData[key] = fullData[key] + "," + value;
-            }
-        });
-
-        // Re-disable elements
-        disabledElements.forEach(el => el.disabled = true);
-
-        // Collect elements that have an ID but no name
-        const elements = form.querySelectorAll('input[id], select[id], textarea[id]');
-        elements.forEach(el => {
-            if (!el.name) {
-                if (el.type === 'checkbox' || el.type === 'radio') {
-                    if (el.checked) fullData[el.id] = el.value || 'on';
-                } else if (el.multiple) {
-                    const selected = Array.from(el.selectedOptions).map(o => o.value);
-                    if (selected.length > 0) fullData[el.id] = selected.join(',');
+        try {
+            const formData = new FormData(form);
+            
+            // Process FormData for named elements
+            formData.forEach((value, key) => {
+                if(!fullData[key]){
+                    fullData[key] = value;
                 } else {
-                    fullData[el.id] = el.value;
+                    fullData[key] = fullData[key] + "," + value;
                 }
-            }
-        });
+            });
+
+            // Collect elements that have an ID but no name
+            const elements = form.querySelectorAll('input[id], select[id], textarea[id]');
+            elements.forEach(el => {
+                if (!el.name) {
+                    if (el.type === 'checkbox' || el.type === 'radio') {
+                        if (el.checked) fullData[el.id] = el.value || 'on';
+                    } else if (el.multiple) {
+                        const selected = Array.from(el.selectedOptions).map(o => o.value);
+                        if (selected.length > 0) fullData[el.id] = selected.join(',');
+                    } else {
+                        fullData[el.id] = el.value;
+                    }
+                }
+            });
+        } finally {
+            // Re-disable elements even if an error occurs
+            disabledElements.forEach(el => el.disabled = true);
+        }
         
-        // Ensure cascading dropdowns are explicitly captured
+        // Ensure cascading dropdowns are explicitly captured (read .value directly, works even if disabled)
         fullData['secA-state'] = document.getElementById('secA-state').value;
         fullData['secA-district'] = document.getElementById('secA-district').value;
         fullData['secA-subdistrict'] = document.getElementById('secA-subdistrict').value;
@@ -907,7 +984,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function saveAssessment(status) {
         const id = document.getElementById('recordId').value;
-        const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        // BUG-05: User-scoped localStorage
+        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
         const existingIndex = assessments.findIndex(a => a.id === id);
         
         const record = {
@@ -921,7 +999,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             record.submittedAt = record.updatedAt;
         }
 
-        // Bug 9: Preserve rejection history from existing record
+        // Preserve rejection history from existing record
         if (existingIndex >= 0) {
             const existing = assessments[existingIndex];
             if (existing.rejectionReason) {
@@ -938,11 +1016,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             assessments.push(record);
         }
 
-        localStorage.setItem(DB_ASSESSMENTS, JSON.stringify(assessments));
+        localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
     }
 
     function loadAssessmentData(id) {
-        const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        // BUG-05: User-scoped localStorage
+        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
         const record = assessments.find(a => a.id === id);
         if(!record) return;
 
@@ -1159,15 +1238,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('approve-assessment-btn').addEventListener('click', () => {
-        // Bug 3 fix: Update only the status — don't re-collect from disabled form fields
         const id = document.getElementById('recordId').value;
-        const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        // BUG-05: User-scoped localStorage
+        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
         const existingIndex = assessments.findIndex(a => a.id === id);
         
         if (existingIndex >= 0) {
             assessments[existingIndex].status = 'Approved';
             assessments[existingIndex].updatedAt = new Date().toISOString();
-            localStorage.setItem(DB_ASSESSMENTS, JSON.stringify(assessments));
+            localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
             showToast('Assessment Approved Successfully!');
             switchAppView('dashboard');
         }
@@ -1181,13 +1260,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         const id = document.getElementById('recordId').value;
-        const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        // BUG-05: User-scoped localStorage
+        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
         const existingIndex = assessments.findIndex(a => a.id === id);
         
         if (existingIndex >= 0) {
             assessments[existingIndex].status = 'Rejected';
             assessments[existingIndex].rejectionReason = reason;
-            localStorage.setItem(DB_ASSESSMENTS, JSON.stringify(assessments));
+            // BUG-17: Update updatedAt on rejection
+            assessments[existingIndex].updatedAt = new Date().toISOString();
+            localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
             showToast('Assessment Rejected');
             switchAppView('dashboard');
         }
@@ -1202,7 +1284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Run Initialization
     loadLocations();
-    initSession();
+    // BUG-03: initSession() removed — onAuthStateChange with INITIAL_SESSION handles this
 
 
     
@@ -1284,16 +1366,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 let loc = [u.state, u.district, u.sub_district, u.village].filter(Boolean).join(', ');
                 if (!loc) loc = 'N/A';
                 
+                // BUG-06: Escape user-supplied data + BUG-13: use correct badge classes
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${u.email.split('@')[0]}</td>
-                    <td>${u.email}</td>
-                    <td><span class="badge ${u.role === 'GP User' ? 'bg-primary' : 'bg-success'}">${u.role}</span></td>
-                    <td><small>${loc}</small></td>
+                    <td>${escapeHtml(u.email.split('@')[0])}</td>
+                    <td>${escapeHtml(u.email)}</td>
+                    <td><span class="badge ${u.role === 'GP User' ? 'badge-submitted' : 'badge-approved'}">${escapeHtml(u.role)}</span></td>
+                    <td><small>${escapeHtml(loc)}</small></td>
                     <td>
-                        <button class="btn-outline btn-small view-id-btn" data-email="${u.email}">View Details</button>
-                        <button class="btn-primary btn-small approve-user-btn" data-email="${u.email}" style="background-color: var(--success); border-color: var(--success);">Approve</button>
-                        <button class="btn-outline btn-small reject-user-btn text-danger" data-email="${u.email}">Reject</button>
+                        <button class="btn-outline btn-small view-id-btn" data-email="${escapeHtml(u.email)}">View Details</button>
+                        <button class="btn-primary btn-small approve-user-btn" data-email="${escapeHtml(u.email)}" style="background-color: var(--success); border-color: var(--success);">Approve</button>
+                        <button class="btn-outline btn-small reject-user-btn text-danger" data-email="${escapeHtml(u.email)}">Reject</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1325,17 +1408,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         let loc = [u.state, u.district, u.sub_district, u.village].filter(Boolean).join(', ');
         if (!loc) loc = 'N/A';
         
+        // BUG-06: Escape user-supplied data + BUG-13: correct badge classes
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${u.email.split('@')[0]}</td>
-            <td>${u.email}</td>
-            <td><span class="badge ${u.role === 'GP User' ? 'bg-primary' : 'bg-success'}">${u.role}</span></td>
-            <td><small>${loc}</small></td>
+            <td>${escapeHtml(u.email.split('@')[0])}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td><span class="badge ${u.role === 'GP User' ? 'badge-submitted' : 'badge-approved'}">${escapeHtml(u.role)}</span></td>
+            <td><small>${escapeHtml(loc)}</small></td>
             <td>
-                <span class="badge ${u.account_status === 'approved' ? 'bg-success' : 'bg-danger'}">${u.account_status}</span>
+                <span class="badge ${u.account_status === 'approved' ? 'badge-approved' : 'badge-rejected'}">${escapeHtml(u.account_status)}</span>
             </td>
             <td>
-                <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${u.email}">Delete</button>
+                <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>
             </td>
         `;
         tbody.appendChild(tr);
