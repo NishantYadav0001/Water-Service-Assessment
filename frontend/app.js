@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let locationData = {};
     let isLocationDataLoaded = false;
     let isRegistering = false;
+    let isFormDirty = false;
     const DB_ASSESSMENTS = 'db_assessments';
 
     // Views
@@ -30,12 +31,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Navigation Events
     const btnNewForm = document.getElementById('btn-new-form');
-    if (btnNewForm) btnNewForm.addEventListener('click', () => openAssessmentForm(null));
-    document.getElementById('back-to-dashboard').addEventListener('click', () => switchAppView('dashboard'));
-    document.getElementById('logout-btn').addEventListener('click', logout);
+    if (btnNewForm) {
+        btnNewForm.addEventListener('click', () => {
+            const assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+            const draftCount = assessments.filter(a => a.status === 'Draft').length;
+            if (draftCount >= 2) {
+                alert('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.');
+                return;
+            }
+            openAssessmentForm(null);
+        });
+    }
+    document.getElementById('back-to-dashboard').addEventListener('click', () => {
+        if (isFormDirty) {
+            if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
+        }
+        switchAppView('dashboard');
+    });
+    
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        if (isFormDirty) {
+            if (!confirm('You have unsaved changes. Are you sure you want to logout? Your filled data may be lost.')) return;
+        }
+        logout();
+    });
+    
     document.getElementById('close-modal-btn').addEventListener('click', () => {
         successModal.classList.add('hidden');
         switchAppView('dashboard');
+    });
+    
+    window.addEventListener('beforeunload', (e) => {
+        if (isFormDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
     });
 
     document.addEventListener('languageChanged', () => {
@@ -455,23 +485,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
         }
         
-        let query = supabase.from('assessments').select('*');
+        // Fetch all assessments from localStorage since that is where they are saved
+        let assessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+        let filtered = assessments;
         
-        if (currentUser.role === 'GP User') {
-            query = query.eq('user_id', currentUser.id || currentUser.email); // using email as ID if auth.users.id is complex
-        } else if (currentUser.role === 'District Admin') {
-            query = query.eq('district', currentUser.district).eq('status', 'Submitted');
+        // Map the data structure to match what the rest of the code expects
+        filtered = filtered.map(a => ({
+            id: a.id,
+            status: a.status,
+            payload: a.data,
+            village: a.data.village,
+            sub_district: a.data.subdistrict,
+            district: a.data.district,
+            state: a.data.state,
+            user_id: currentUser.email // We don't save user_id in localStorage currently, but we can mock it or ignore it since GP users only see their own local storage
+        }));
+
+        // Role-based filtering
+        if (currentUser.role === 'District Admin') {
+            filtered = filtered.filter(a => a.district === currentUser.district && a.status === 'Submitted');
         } else if (currentUser.role === 'State Admin') {
-            query = query.eq('state', currentUser.state);
+            filtered = filtered.filter(a => a.state === currentUser.state);
         }
-        
-        const { data: assessments, error } = await query;
-        if (error) {
-            console.error("Error fetching assessments", error);
-            return;
-        }
-        
-        let filtered = assessments || [];
         if (showDraftsOnly) {
             filtered = filtered.filter(a => a.status === 'Draft');
         } else if (currentUser.role === 'GP User') {
@@ -501,24 +536,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             const tr = document.createElement('tr');
             
             let statusBadge = '';
-            if (record.status === 'Submitted') statusBadge = 'bg-primary';
+            let displayStatus = window.t(record.status.toLowerCase()) || record.status;
+            
+            if (record.status === 'Submitted') {
+                statusBadge = 'bg-primary';
+                if (currentUser.role === 'GP User') {
+                    displayStatus = window.t ? window.t('pending') || 'Pending' : 'Pending';
+                    statusBadge = 'bg-warning text-dark';
+                }
+            }
             else if (record.status === 'Approved') statusBadge = 'bg-success';
             else if (record.status === 'Rejected') statusBadge = 'bg-danger';
             else statusBadge = 'bg-warning text-dark';
             
             let actionBtn = '';
             if (record.status === 'Draft' && currentUser.role === 'GP User') {
-                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="edit">${window.t('edit')}</button>`;
+                actionBtn = `
+                    <button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="edit">${window.t('edit') || 'Edit'}</button>
+                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${record.id}" data-i18n="delete">${window.t('delete') || 'Delete'}</button>
+                `;
             } else if (record.status === 'Submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
-                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="review">${window.t('review')}</button>`;
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="review">${window.t('review') || 'Review'}</button>`;
             } else {
-                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="view">${window.t('view')}</button>`;
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${record.id}" data-i18n="view">${window.t('view') || 'View'}</button>`;
+            }
+            
+            // Logic for date: if draft, show updatedAt, else show date_discussion
+            let displayDate = new Date().toLocaleDateString();
+            if (record.status === 'Draft' && record.updatedAt) {
+                displayDate = new Date(record.updatedAt).toLocaleDateString();
+            } else if (record.submittedAt) {
+                displayDate = new Date(record.submittedAt).toLocaleDateString();
+            } else if (record.payload && record.payload.date_discussion) {
+                displayDate = record.payload.date_discussion;
             }
             
             tr.innerHTML = `
-                <td>${record.payload ? record.payload.date_discussion : new Date().toLocaleDateString()}</td>
-                <td>${record.village}</td>
-                <td><span class="badge ${statusBadge}" data-i18n="${record.status.toLowerCase()}">${window.t(record.status.toLowerCase()) || record.status}</span></td>
+                <td>${displayDate}</td>
+                <td>${record.village || 'N/A'}</td>
+                <td><span class="badge ${statusBadge}" data-i18n="${record.status.toLowerCase()}">${displayStatus}</span></td>
                 <td>${actionBtn}</td>
             `;
             tbody.appendChild(tr);
@@ -528,6 +584,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.addEventListener('click', (e) => {
                 const id = e.target.getAttribute('data-id');
                 openAssessmentForm(id);
+            });
+        });
+        
+        document.querySelectorAll('.delete-record').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (confirm(window.t ? window.t('delete_confirm') || 'Are you sure you want to delete this draft?' : 'Are you sure you want to delete this draft?')) {
+                    const id = e.target.getAttribute('data-id');
+                    let localAssessments = JSON.parse(localStorage.getItem(DB_ASSESSMENTS)) || [];
+                    localAssessments = localAssessments.filter(a => a.id !== id);
+                    localStorage.setItem(DB_ASSESSMENTS, JSON.stringify(localAssessments));
+                    showToast(window.t ? window.t('draft_deleted') || 'Draft Deleted!' : 'Draft Deleted!');
+                    renderDashboard();
+                }
             });
         });
     }
@@ -555,6 +624,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     q1.addEventListener('change', checkValidationHeader);
     q2.addEventListener('change', checkValidationHeader);
+
+    // Image and Video Proof Validation & Upload
+    const instImageProof = document.getElementById('inst-image-proof');
+    const instImageUrl = document.getElementById('inst-image-url');
+
+    instImageProof.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 1 * 1024 * 1024) {
+            alert('Image must be less than 1 MB.');
+            e.target.value = '';
+            instImageUrl.value = '';
+            return;
+        }
+
+        const fileName = `assessment_img_${Date.now()}_${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage.from('id-proofs').upload(fileName, file);
+        if (uploadError) {
+            alert('Failed to upload image: ' + uploadError.message);
+            e.target.value = '';
+            return;
+        }
+        const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
+        instImageUrl.value = publicUrlData.publicUrl;
+        const help = instImageUrl.nextElementSibling;
+        if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+    });
+
+    const instVideoProof = document.getElementById('inst-video-proof');
+    const instVideoUrl = document.getElementById('inst-video-url');
+
+    instVideoProof.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Video must be less than 5 MB.');
+            e.target.value = '';
+            instVideoUrl.value = '';
+            return;
+        }
+
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = async function() {
+            window.URL.revokeObjectURL(video.src);
+            if (video.duration > 120) {
+                alert('Video length must be strictly less than 2 minutes.');
+                e.target.value = '';
+                instVideoUrl.value = '';
+                return;
+            }
+
+            const fileName = `assessment_vid_${Date.now()}_${file.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage.from('id-proofs').upload(fileName, file);
+            if (uploadError) {
+                alert('Failed to upload video: ' + uploadError.message);
+                e.target.value = '';
+                return;
+            }
+            const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
+            instVideoUrl.value = publicUrlData.publicUrl;
+            const help = instVideoUrl.nextElementSibling;
+            if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+        };
+        video.src = URL.createObjectURL(file);
+    });
 
     // Dynamic Village Title & Habitations
     const secAVillage = document.getElementById('secA-village');
@@ -644,7 +781,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Form Save/Submit ---
     function openAssessmentForm(id = null) {
+        isFormDirty = false;
+        switchAppView('assessment');
         document.getElementById('assessment-form').reset();
+        
+        // Listen to form inputs to mark form as dirty
+        const form = document.getElementById('assessment-form');
+        form.removeEventListener('input', markFormDirty);
+        form.removeEventListener('change', markFormDirty);
+        form.addEventListener('input', markFormDirty);
+        form.addEventListener('change', markFormDirty);
         document.getElementById('secA-date').max = new Date().toISOString().split('T')[0];
         habSelect.innerHTML = ''; // clear habitations
         checkValidationHeader();
@@ -652,10 +798,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const session = currentUser;
         document.getElementById('gp-actions').style.display = 'flex';
+        document.getElementById('preview-actions').style.display = 'none';
         document.getElementById('admin-actions').classList.add('hidden');
         document.getElementById('admin-actions').style.display = '';
         document.getElementById('rejection-alert').classList.add('hidden');
         setFormReadOnly(false);
+        
+        // Reset action bars
+        document.getElementById('gp-actions').style.display = 'flex';
+        document.getElementById('preview-actions').style.display = 'none';
         
         if (id) {
             document.getElementById('form-title-mode').textContent = 'Edit Assessment';
@@ -704,16 +855,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function collectFormData() {
         const form = document.getElementById('assessment-form');
+        
+        // Temporarily enable all fields to ensure FormData captures everything (especially in Preview Mode)
+        const disabledElements = form.querySelectorAll(':disabled');
+        disabledElements.forEach(el => el.disabled = false);
+        
         const formData = new FormData(form);
         const fullData = {};
         
-        // Ensure cascading dropdowns are captured since disabled fields aren't inherently serialized
-        fullData['state'] = document.getElementById('secA-state').value;
-        fullData['district'] = document.getElementById('secA-district').value;
-        fullData['subdistrict'] = document.getElementById('secA-subdistrict').value;
-        fullData['village'] = document.getElementById('secA-village').value;
-        fullData['date'] = document.getElementById('secA-date').value;
-
+        // Process FormData for named elements
         formData.forEach((value, key) => {
             if(!fullData[key]){
                 fullData[key] = value;
@@ -721,6 +871,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fullData[key] = fullData[key] + "," + value;
             }
         });
+
+        // Re-disable elements
+        disabledElements.forEach(el => el.disabled = true);
+
+        // Collect elements that have an ID but no name
+        const elements = form.querySelectorAll('input[id], select[id], textarea[id]');
+        elements.forEach(el => {
+            if (!el.name) {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    if (el.checked) fullData[el.id] = el.value || 'on';
+                } else if (el.multiple) {
+                    const selected = Array.from(el.selectedOptions).map(o => o.value);
+                    if (selected.length > 0) fullData[el.id] = selected.join(',');
+                } else {
+                    fullData[el.id] = el.value;
+                }
+            }
+        });
+        
+        // Ensure cascading dropdowns are explicitly captured
+        fullData['secA-state'] = document.getElementById('secA-state').value;
+        fullData['secA-district'] = document.getElementById('secA-district').value;
+        fullData['secA-subdistrict'] = document.getElementById('secA-subdistrict').value;
+        fullData['secA-village'] = document.getElementById('secA-village').value;
+        
+        // Legacy keys to support old drafts
+        fullData['state'] = fullData['secA-state'];
+        fullData['district'] = fullData['secA-district'];
+        fullData['subdistrict'] = fullData['secA-subdistrict'];
+        fullData['village'] = fullData['secA-village'];
         
         return fullData;
     }
@@ -736,6 +916,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             data: collectFormData(),
             updatedAt: new Date().toISOString()
         };
+        
+        if (status === 'Submitted') {
+            record.submittedAt = record.updatedAt;
+        }
 
         // Bug 9: Preserve rejection history from existing record
         if (existingIndex >= 0) {
@@ -787,16 +971,59 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
+        
+        // Restore habitations options manually because they are dynamically populated
+        const habSelect = document.getElementById('secA-habitations');
+        const savedHabs = record.data['secA-habitations'] || record.data['habitations'];
+        if (savedHabs) {
+            const habsArr = savedHabs.split(',');
+            habSelect.innerHTML = '';
+            habsArr.forEach(hab => {
+                const opt = document.createElement('option');
+                opt.value = hab;
+                opt.textContent = hab;
+                opt.selected = true;
+                habSelect.appendChild(opt);
+            });
+            // Calling this creates the input elements for the tables below
+            // Note: renderHabitationTables is defined in the same scope
+            if (typeof renderHabitationTables === 'function') {
+                renderHabitationTables();
+            }
+        }
 
         // Naive population mapping for prototype
         Object.keys(record.data).forEach(key => {
-            const el = document.getElementById(`secA-${key}`) || document.getElementById(`secB-${key}`); 
+            const val = record.data[key];
+            if (val === undefined || val === null) return;
+            
+            // First try by ID directly
+            let el = document.getElementById(key);
+            
+            // Fallback for legacy keys (like 'date' instead of 'secA-date')
+            if (!el) el = document.getElementById(`secA-${key}`) || document.getElementById(`secB-${key}`) || document.getElementById(`secC-${key}`) || document.getElementById(`secD-${key}`) || document.getElementById(`secE-${key}`);
+            
             if (el) {
-                el.value = record.data[key];
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = (val === 'on' || val === el.value || val === true);
+                } else {
+                    el.value = val;
+                }
             } else {
-                const elByName = document.getElementsByName(key)[0];
-                if(elByName && elByName.type !== 'checkbox' && elByName.type !== 'radio') {
-                    elByName.value = record.data[key];
+                // Try by name for things like checkboxes, radios, or arrays (like membersPresent)
+                const elsByName = document.getElementsByName(key);
+                if (elsByName.length > 0) {
+                    const valArray = typeof val === 'string' ? val.split(',') : [val];
+                    elsByName.forEach(nameEl => {
+                        if (nameEl.type === 'checkbox' || nameEl.type === 'radio') {
+                            nameEl.checked = valArray.includes(nameEl.value);
+                        } else {
+                            // For inputs with same name (like disrupt_reason array)
+                            // This naive approach sets all to the last value or needs index handling
+                            // For simplicity, we assume single input if not checkbox/radio
+                            nameEl.value = val;
+                        }
+                    });
                 }
             }
         });
@@ -817,17 +1044,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('admin-actions').style.display = 'flex';
         }
         
+        // Lock location fields for all users when editing an existing draft to maintain data consistency
+        document.getElementById('secA-state').disabled = true;
+        document.getElementById('secA-district').disabled = true;
+        document.getElementById('secA-subdistrict').disabled = true;
+        document.getElementById('secA-village').disabled = true;
+
+        // Visual feedback for uploaded proofs
+        if (record.data['inst-image-url']) {
+            const help = document.getElementById('inst-image-url').nextElementSibling;
+            if (help) help.innerHTML = `<a href="${record.data['inst-image-url']}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+        }
+        if (record.data['inst-video-url']) {
+            const help = document.getElementById('inst-video-url').nextElementSibling;
+            if (help) help.innerHTML = `<a href="${record.data['inst-video-url']}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+        }
+        
         // Re-trigger checks
         checkValidationHeader();
     }
 
+    function markFormDirty() {
+        isFormDirty = true;
+    }
+
     document.getElementById('save-draft-btn').addEventListener('click', () => {
         saveAssessment('Draft');
+        isFormDirty = false;
         showToast('Draft Saved Successfully!');
     });
 
     document.getElementById('save-exit-btn').addEventListener('click', () => {
         saveAssessment('Draft');
+        isFormDirty = false;
         showToast('Draft Saved!');
         switchAppView('dashboard');
     });
@@ -849,12 +1098,63 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
+        const imageUrl = document.getElementById('inst-image-url').value;
+        const videoUrl = document.getElementById('inst-video-url').value;
+        if (!imageUrl || !videoUrl) {
+            alert('Please upload both Image and Video proofs for Institutional Validation.');
+            return;
+        }
+        
+        const checkboxGroups = [
+            { name: 'membersPresent', label: window.t ? window.t('members_present') || 'Members Present' : 'Members Present' },
+            { name: 'waterSource', label: window.t ? window.t('water_source') || 'Source of water supply' : 'Source of water supply' },
+            { name: 'leakDetect', label: window.t ? window.t('leak_methods') || 'Leak detection methods' : 'Leak detection methods' },
+            { name: 'gpIssues', label: window.t ? window.t('gp_issues') || 'Checklist of GP Issues' : 'Checklist of GP Issues' }
+        ];
+
+        for (const group of checkboxGroups) {
+            const checkedCount = document.querySelectorAll(`input[name="${group.name}"]:checked`).length;
+            if (checkedCount === 0) {
+                alert(`Please select at least one option for: ${group.label}`);
+                return;
+            }
+        }
+
         if(!form.checkValidity()) {
             form.reportValidity();
             return;
         }
 
+        if (confirm(window.t ? window.t('preview_confirm') || 'Are you sure you want to review your assessment before final submission?' : 'Are you sure you want to review your assessment before final submission?')) {
+            setFormReadOnly(true);
+            document.getElementById('gp-actions').style.display = 'none';
+            document.getElementById('preview-actions').style.display = 'flex';
+            window.scrollTo(0, 0);
+            showToast(window.t ? window.t('preview_mode') || 'Preview Mode Activated' : 'Preview Mode Activated');
+        }
+    });
+
+    document.getElementById('edit-form-btn').addEventListener('click', () => {
+        setFormReadOnly(false);
+        document.getElementById('gp-actions').style.display = 'flex';
+        document.getElementById('preview-actions').style.display = 'none';
+        
+        // Always lock location on edit to prevent accidental reassignment
+        document.getElementById('secA-state').disabled = true;
+        document.getElementById('secA-district').disabled = true;
+        document.getElementById('secA-subdistrict').disabled = true;
+        document.getElementById('secA-village').disabled = true;
+    });
+
+    document.getElementById('preview-save-draft-btn')?.addEventListener('click', () => {
+        saveAssessment('Draft');
+        isFormDirty = false;
+        showToast('Draft Saved Successfully from Preview!');
+    });
+
+    document.getElementById('final-submit-btn').addEventListener('click', () => {
         saveAssessment('Submitted');
+        isFormDirty = false;
         successModal.classList.remove('hidden');
     });
 

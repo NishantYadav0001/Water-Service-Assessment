@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jal Seva Aankalan Portal</title>
+    <title>Drinking Water Service Assessment Portal</title>
     <link rel="stylesheet" href="styles.css?v=1788441262">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -23,7 +23,7 @@
                 <select id="languageSelectorAuth" aria-label="Language" class="lang-select"></select>
             </div>
             <div class="brand">
-                <h1 data-i18n="app_title">Jal Seva Aankalan</h1>
+                <h1 data-i18n="app_title">Drinking Water Service Assessment</h1>
                 <p data-i18n="app_subtitle">Gram Panchayat Portal</p>
             </div>
 
@@ -117,7 +117,7 @@
     <div id="app-layout" class="layout-container hidden">
         <header class="app-header">
             <div class="header-brand">
-                <h1 data-i18n="app_title">Jal Seva Aankalan</h1>
+                <h1 data-i18n="app_title">Drinking Water Service Assessment</h1>
             </div>
             <div class="header-user">
                 <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage Users</button>
@@ -317,10 +317,25 @@
                                 </select>
                             </div>
                         </div>
+                        
+                        <div class="form-grid cols-2 mt-3">
+                            <div class="form-group">
+                                <label data-i18n="image_proof">Image Proof <span class="text-danger">*</span></label>
+                                <input type="file" id="inst-image-proof" accept="image/*" class="file-input">
+                                <input type="hidden" id="inst-image-url" name="inst-image-url">
+                                <small class="text-muted" data-i18n="image_proof_help">Max size 1 MB</small>
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="video_proof">Video Proof <span class="text-danger">*</span></label>
+                                <input type="file" id="inst-video-proof" accept="video/*" class="file-input">
+                                <input type="hidden" id="inst-video-url" name="inst-video-url">
+                                <small class="text-muted" data-i18n="video_proof_help">Max size 5 MB, Max length 2 min</small>
+                            </div>
+                        </div>
                         <div class="declaration-box mt-3">
                             <label class="checkbox-label" id="declaration-label" style="opacity: 0.5;">
                                 <input type="checkbox" id="validation-declaration" disabled required>
-                                <span data-i18n="declaration">I hereby certify that the Jal Seva Aankalan for all the villages in the Gram panchayat has been discussed in the VWSC meeting and Gram Sabha and the information provided is true to the best of my knowledge.</span>
+                                <span data-i18n="declaration">I hereby certify that the Drinking Water Service Assessment for all the villages in the Gram panchayat has been discussed in the VWSC meeting and Gram Sabha and the information provided is true to the best of my knowledge.</span>
                             </label>
                         </div>
                     </section>
@@ -380,7 +395,7 @@
 
                         <div class="form-group mt-3">
                             <label data-i18n="habitations">Habitations</label>
-                            <select id="secA-habitations" multiple>
+                            <select id="secA-habitations" multiple required>
                             </select>
                             <button type="button" class="btn-outline btn-small mt-2" id="add-habitation-btn"
                                 style="width: max-content" data-i18n="add_habitation">+ Add Missing Habitation</button>
@@ -446,7 +461,7 @@
                         <div class="form-grid cols-2 mt-3" id="charge-details">
                             <div class="form-group">
                                 <label data-i18n="charge_type">Service charge type</label>
-                                <select id="secB-chargeType">
+                                <select id="secB-chargeType" required>
                                     <option value="" data-i18n="select">Select</option>
                                     <option value="Flat" data-i18n="flat_rate">Flat rate ₹/month</option>
                                     <option value="Volumetric" data-i18n="volumetric">Volumetric ₹/KL</option>
@@ -454,7 +469,7 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="charge_amount">Service charge amount (Max 3 digits)</label>
-                                <input type="number" id="secB-chargeAmount" max="999">
+                                <input type="number" id="secB-chargeAmount" max="999" required>
                                 <span class="text-warning hidden" id="charge-warning" data-i18n="warning_high">Warning: Value is high (> 150)</span>
                             </div>
                         </div>
@@ -462,11 +477,11 @@
                         <div class="form-grid cols-3 mt-3">
                             <div class="form-group">
                                 <label data-i18n="total_schools_awcs">Total Schools & AWCs count</label>
-                                <input type="number" id="secB-schoolsTotal">
+                                <input type="number" id="secB-schoolsTotal" required>
                             </div>
                             <div class="form-group">
                                 <label data-i18n="schools_piped">Schools & AWCs with piped water</label>
-                                <input type="number" id="secB-schoolsPiped">
+                                <input type="number" id="secB-schoolsPiped" required>
                                 <span class="text-danger hidden" id="schools-error">Cannot exceed total count</span>
                             </div>
                         </div>
@@ -488,7 +503,7 @@
                         <div class="form-grid cols-2">
                             <div class="form-group">
                                 <label data-i18n="avg_days_supplied">Avg. days supplied per month</label>
-                                <input type="number" id="secC-avgDays" max="30">
+                                <input type="number" id="secC-avgDays" max="30" required>
                             </div>
                         </div>
 
@@ -506,7 +521,7 @@
                                     <tr>
                                         <td>
                                             <select name="disrupt_reason" class="table-input"
-                                                style="padding: 0.375rem;">
+                                                style="padding: 0.375rem;" required>
                                                 <option value="" data-i18n="select_reason">Select Reason</option>
                                                 <option value="Power cut" data-i18n="power_cut">Power cut</option>
                                                 <option value="Low voltage" data-i18n="low_voltage">Low voltage</option>
@@ -516,8 +531,8 @@
                                                 <option value="Other" data-i18n="other">Other</option>
                                             </select>
                                         </td>
-                                        <td><input type="number" name="disrupt_times" class="table-input"></td>
-                                        <td><input type="number" name="disrupt_days" class="table-input"></td>
+                                        <td><input type="number" name="disrupt_times" class="table-input" required></td>
+                                        <td><input type="number" name="disrupt_days" class="table-input" required></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -542,20 +557,20 @@
                         <div class="form-grid cols-3">
                             <div class="form-group">
                                 <label data-i18n="households">Households</label>
-                                <input type="number" id="secC-wq-hh">
+                                <input type="number" id="secC-wq-hh" required>
                             </div>
                             <div class="form-group">
                                 <label data-i18n="awcs">AWCs</label>
-                                <input type="number" id="secC-wq-awc">
+                                <input type="number" id="secC-wq-awc" required>
                             </div>
                             <div class="form-group">
                                 <label data-i18n="schools">Schools</label>
-                                <input type="number" id="secC-wq-schools">
+                                <input type="number" id="secC-wq-schools" required>
                             </div>
                         </div>
                         <div class="form-group mt-2">
                             <label data-i18n="remedial_time">Remedial action turnaround time (days)</label>
-                            <input type="number" id="secC-remedialTime">
+                            <input type="number" id="secC-remedialTime" required>
                         </div>
                     </section>
 
@@ -573,7 +588,7 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="minor_repair">Minor repair responsibility</label>
-                                <select id="secD-repairResp">
+                                <select id="secD-repairResp" required>
                                     <option value="" data-i18n="select">Select</option>
                                     <option value="O&M Contractor" data-i18n="om_contractor">O&M Contractor</option>
                                     <option value="PHED" data-i18n="phed">PHED</option>
@@ -584,7 +599,7 @@
                         </div>
                         <div class="form-group mt-3">
                             <label data-i18n="tank_cleaning">Frequency of tank cleaning</label>
-                            <select id="secD-tankCleaning">
+                            <select id="secD-tankCleaning" required>
                                 <option value="" data-i18n="select">Select</option>
                                 <option value="Once in 6 months" data-i18n="6_months">Once in 6 months</option>
                                 <option value="Once in 12 months" data-i18n="12_months">Once in 12 months</option>
@@ -599,7 +614,7 @@
                         <div class="form-grid cols-2">
                             <div class="form-group">
                                 <label data-i18n="source_sustenance">Source sustenance structures available?</label>
-                                <select id="secE-recharge">
+                                <select id="secE-recharge" required>
                                     <option value="" data-i18n="select">Select</option>
                                     <option value="Yes" data-i18n="yes">Yes</option>
                                     <option value="No" data-i18n="no">No</option>
@@ -607,7 +622,7 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="trained_operator">Trained Operator available?</label>
-                                <select id="secE-operator">
+                                <select id="secE-operator" required>
                                     <option value="" data-i18n="select">Select</option>
                                     <option value="Yes" data-i18n="yes">Yes</option>
                                     <option value="No" data-i18n="no">No</option>
@@ -616,7 +631,7 @@
                         </div>
                         <div class="form-group mt-2">
                             <label data-i18n="cert_details">Certification details</label>
-                            <input type="text" id="secE-certifications" data-i18n-placeholder="ph_cert" placeholder="e.g. Skill India">
+                            <input type="text" id="secE-certifications" data-i18n-placeholder="ph_cert" placeholder="e.g. Skill India" required>
                         </div>
 
                         <div class="form-group mt-3">
@@ -638,6 +653,12 @@
                             <button type="button" class="btn-outline" id="save-draft-btn" data-i18n="save_draft">Save Draft</button>
                             <button type="button" class="btn-outline" id="save-exit-btn" data-i18n="save_exit">Save and Exit</button>
                             <button type="submit" class="btn-primary" id="submit-assessment-btn" data-i18n="submit_assessment">Submit Assessment</button>
+                        </div>
+
+                        <div id="preview-actions" class="hidden" style="display: none; gap: 1rem;">
+                            <button type="button" class="btn-outline" id="preview-save-draft-btn" data-i18n="save_draft">Save Draft</button>
+                            <button type="button" class="btn-outline" id="edit-form-btn" data-i18n="edit_form">Edit Form</button>
+                            <button type="button" class="btn-primary bg-success" id="final-submit-btn" data-i18n="final_submit">Final Submit</button>
                         </div>
                         
                         <div id="admin-actions" class="hidden">

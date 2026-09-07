@@ -3,7 +3,7 @@ package com.jalseva.dto;
 import java.util.List;
 
 /**
- * Data Transfer Object for the Jal Seva Aankalan
+ * Data Transfer Object for the Drinking Water Service Assessment
  * assessment submission payload.
  */
 public class AssessmentDTO {

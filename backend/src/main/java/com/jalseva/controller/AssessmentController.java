@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * REST controller for Jal Seva Aankalan assessment submissions.
+ * REST controller for Drinking Water Service Assessment assessment submissions.
  */
 @RestController
 @RequestMapping("/api/assessments")
