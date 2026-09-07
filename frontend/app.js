@@ -12,12 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isLocationDataLoaded = false;
     let isRegistering = false;
     let isFormDirty = false;
-    const DB_ASSESSMENTS_PREFIX = 'db_assessments_'; // BUG-05: user-scoped storage key
-
-    // BUG-05: Helper to get user-scoped localStorage key
-    function getStorageKey() {
-        return currentUser ? DB_ASSESSMENTS_PREFIX + currentUser.email : 'db_assessments_guest';
-    }
+    let filterLockedForRole = false; // Flag to ensure filter locking runs only once per login
 
     // BUG-06: Sanitize user input before inserting into innerHTML
     function escapeHtml(str) {
@@ -53,10 +48,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Navigation Events
     const btnNewForm = document.getElementById('btn-new-form');
     if (btnNewForm) {
-        btnNewForm.addEventListener('click', () => {
-            // BUG-09: user-scoped draft count
-            const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-            const draftCount = assessments.filter(a => a.status === 'Draft').length;
+        btnNewForm.addEventListener('click', async () => {
+            // BUG-09: user-scoped draft count, now querying Supabase
+            const { data: drafts, error } = await supabase.from('assessments').select('id').eq('user_id', currentUser.email).eq('status', 'Draft');
+            if (error) {
+                // If table doesn't exist yet (code 42P01) or no rows, allow creation
+                console.warn("Draft count check returned error (table may not exist yet):", error.message);
+            }
+            const draftCount = (drafts && !error) ? drafts.length : 0;
             if (draftCount >= 2) {
                 alert('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.');
                 return;
@@ -161,6 +160,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             if (navToggleBtn) navToggleBtn.classList.add('hidden');
         }
+
+        // Hide "New Assessment" button for non-GP Users
+        const btnNewFormEl = document.getElementById('btn-new-form');
+        if (btnNewFormEl) {
+            if (currentUser.role === 'GP User') {
+                btnNewFormEl.classList.remove('hidden');
+            } else {
+                btnNewFormEl.classList.add('hidden');
+            }
+        }
+
+        // Hide "View Drafts" button for non-GP Users (admins don't create drafts)
+        const viewDraftsBtnEl = document.getElementById('btn-view-drafts');
+        if (viewDraftsBtnEl) {
+            if (currentUser.role === 'GP User') {
+                viewDraftsBtnEl.classList.remove('hidden');
+            } else {
+                viewDraftsBtnEl.classList.add('hidden');
+            }
+        }
         
         if (currentUser.role === 'SuperAdmin' || currentUser.role === 'Super Admin') {
             switchAppView('superadmin');
@@ -252,6 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function logout() {
         await supabase.auth.signOut();
         showDraftsOnly = false;
+        filterLockedForRole = false; // Reset so filter locking runs again on next login
         // showAuth is called by onAuthStateChange
     }
 
@@ -512,54 +532,86 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (!currentUser) return;
         
+        // Show filter card for admins, hide for GP Users
         const filterCard = document.querySelector('.filter-card');
         if (filterCard) {
             filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
         }
+
+        // Role-based filter locking (run ONCE per login, not on every render)
+        if (!filterLockedForRole && currentUser.role !== 'GP User') {
+            filterLockedForRole = true;
+            const filterStateEl = document.getElementById('filter-state');
+            const filterDistEl = document.getElementById('filter-district');
+
+            if (currentUser.role === 'State Admin') {
+                if (filterStateEl && currentUser.state) {
+                    filterStateEl.value = currentUser.state;
+                    filterStateEl.disabled = true;
+                    filterStateEl.dispatchEvent(new Event('change'));
+                }
+            } else if (currentUser.role === 'District Admin') {
+                if (filterStateEl && currentUser.state) {
+                    filterStateEl.value = currentUser.state;
+                    filterStateEl.disabled = true;
+                    filterStateEl.dispatchEvent(new Event('change'));
+                }
+                await new Promise(r => setTimeout(r, 60));
+                if (filterDistEl && currentUser.district) {
+                    filterDistEl.value = currentUser.district;
+                    filterDistEl.disabled = true;
+                    filterDistEl.dispatchEvent(new Event('change'));
+                }
+            }
+        }
         
-        // BUG-05: Fetch user-scoped assessments from localStorage
-        let assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-        let filtered = assessments;
-        
-        // Map the data structure to match what the rest of the code expects
-        filtered = filtered.map(a => ({
-            id: a.id,
-            status: a.status,
-            payload: a.data,
-            village: a.data ? a.data.village : '',
-            sub_district: a.data ? a.data.subdistrict : '',
-            district: a.data ? a.data.district : '',
-            state: a.data ? a.data.state : '',
-            updatedAt: a.updatedAt,
-            submittedAt: a.submittedAt,
-            user_id: currentUser.email
-        }));
+        // Fetch assessments from Supabase
+        let query = supabase.from('assessments').select('*');
 
         // Role-based filtering
-        if (currentUser.role === 'District Admin') {
-            filtered = filtered.filter(a => a.district === currentUser.district && a.status === 'Submitted');
+        if (currentUser.role === 'GP User') {
+            query = query.eq('user_id', currentUser.email);
+            if (showDraftsOnly) {
+                query = query.eq('status', 'Draft');
+            }
+            // Default view: show ALL records (drafts + submitted + approved + rejected)
+        } else if (currentUser.role === 'District Admin') {
+            query = query.eq('district', currentUser.district).in('status', ['Submitted', 'Approved', 'Rejected']);
         } else if (currentUser.role === 'State Admin') {
-            filtered = filtered.filter(a => a.state === currentUser.state);
+            query = query.eq('state', currentUser.state).neq('status', 'Draft');
         }
-        if (showDraftsOnly) {
-            filtered = filtered.filter(a => a.status === 'Draft');
-        } else if (currentUser.role === 'GP User') {
-            filtered = filtered.filter(a => a.status !== 'Draft');
-        }
-        
+
         // Also apply location filters if set
         const fState = document.getElementById('filter-state').value;
         const fDist = document.getElementById('filter-district').value;
         const fSub = document.getElementById('filter-subdistrict').value;
         const fVill = document.getElementById('filter-village').value;
         
-        filtered = filtered.filter(r => {
-            if (fState && r.state !== fState) return false;
-            if (fDist && r.district !== fDist) return false;
-            if (fSub && r.sub_district !== fSub) return false;
-            if (fVill && r.village !== fVill) return false;
-            return true;
-        });
+        if (fState) query = query.eq('state', fState);
+        if (fDist) query = query.eq('district', fDist);
+        if (fSub) query = query.eq('sub_district', fSub);
+        if (fVill) query = query.eq('village', fVill);
+
+        const { data: dbRecords, error } = await query.order('created_at', { ascending: false });
+
+        if (error) {
+            console.warn("Error fetching assessments (table may not exist yet):", error.message);
+            // If table doesn't exist yet, just show no records instead of an error
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
+            return;
+        }
+
+        let filtered = dbRecords.map(a => ({
+            id: a.id,
+            status: a.status,
+            payload: a.payload,
+            village: a.village,
+            sub_district: a.sub_district,
+            district: a.district,
+            state: a.state,
+            createdAt: a.created_at,
+            user_id: a.user_id
+        }));
         
         if (filtered.length === 0) {
             // BUG-02: use safeT instead of raw window.t()
@@ -599,14 +651,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
             }
             
-            // Logic for date: if draft, show updatedAt, else show date_discussion
-            let displayDate = new Date().toLocaleDateString();
-            if (record.status === 'Draft' && record.updatedAt) {
-                displayDate = new Date(record.updatedAt).toLocaleDateString();
-            } else if (record.submittedAt) {
-                displayDate = new Date(record.submittedAt).toLocaleDateString();
-            } else if (record.payload && record.payload.date_discussion) {
+            // Logic for date display
+            let displayDate = '';
+            if (record.payload && record.payload.date_discussion) {
                 displayDate = record.payload.date_discussion;
+            } else if (record.createdAt) {
+                displayDate = new Date(record.createdAt).toLocaleDateString();
+            } else {
+                displayDate = new Date().toLocaleDateString();
             }
             
             // BUG-06: Escape user-supplied village name
@@ -627,13 +679,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
         
         document.querySelectorAll('.delete-record').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                // BUG-02 + BUG-05: Safe translations + user-scoped storage
+            btn.addEventListener('click', async (e) => {
+                // BUG-02 + BUG-05: Safe translations + database delete
             if (confirm(safeT('delete_confirm', 'Are you sure you want to delete this draft?'))) {
                     const id = e.target.getAttribute('data-id');
-                    let localAssessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-                    localAssessments = localAssessments.filter(a => a.id !== id);
-                    localStorage.setItem(getStorageKey(), JSON.stringify(localAssessments));
+                    const { error } = await supabase.from('assessments').delete().eq('id', id);
+                    if (error) {
+                        alert('Failed to delete draft: ' + error.message);
+                        return;
+                    }
                     showToast(safeT('draft_deleted', 'Draft Deleted!'));
                     renderDashboard();
                 }
@@ -854,7 +908,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Form Save/Submit ---
-    function openAssessmentForm(id = null) {
+    async function openAssessmentForm(id = null) {
         isFormDirty = false;
         switchAppView('assessment');
         document.getElementById('assessment-form').reset();
@@ -886,7 +940,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (id) {
             document.getElementById('form-title-mode').textContent = 'Edit Assessment';
             document.getElementById('recordId').value = id;
-            loadAssessmentData(id);
+            await loadAssessmentData(id);
+            // Always lock location fields when editing an existing form
+            document.getElementById('secA-state').disabled = true;
+            document.getElementById('secA-district').disabled = true;
+            document.getElementById('secA-subdistrict').disabled = true;
+            document.getElementById('secA-village').disabled = true;
         } else {
             document.getElementById('form-title-mode').textContent = 'New Assessment';
             document.getElementById('recordId').value = 'REC-' + Date.now();
@@ -982,54 +1041,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         return fullData;
     }
 
-    function saveAssessment(status) {
+    async function saveAssessment(status) {
         const id = document.getElementById('recordId').value;
-        // BUG-05: User-scoped localStorage
-        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-        const existingIndex = assessments.findIndex(a => a.id === id);
+        const payload = collectFormData();
         
         const record = {
             id: id,
             status: status,
-            data: collectFormData(),
-            updatedAt: new Date().toISOString()
+            payload: payload,
+            user_id: currentUser.email,
+            state: payload['secA-state'] || currentUser.state,
+            district: payload['secA-district'] || currentUser.district,
+            sub_district: payload['secA-subdistrict'] || currentUser.sub_district,
+            village: payload['secA-village'] || currentUser.village
         };
-        
-        if (status === 'Submitted') {
-            record.submittedAt = record.updatedAt;
-        }
 
-        // Preserve rejection history from existing record
-        if (existingIndex >= 0) {
-            const existing = assessments[existingIndex];
-            if (existing.rejectionReason) {
-                record.rejectionHistory = existing.rejectionHistory || [];
-                record.rejectionHistory.push({
-                    reason: existing.rejectionReason,
-                    date: existing.updatedAt
-                });
-            } else if (existing.rejectionHistory) {
-                record.rejectionHistory = existing.rejectionHistory;
-            }
-            assessments[existingIndex] = record;
-        } else {
-            assessments.push(record);
+        const { error } = await supabase.from('assessments').upsert(record);
+        if (error) {
+            console.error("Failed to save assessment:", error);
+            alert('Failed to save assessment: ' + error.message);
         }
-
-        localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
     }
 
-    function loadAssessmentData(id) {
-        // BUG-05: User-scoped localStorage
-        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-        const record = assessments.find(a => a.id === id);
-        if(!record) return;
+    async function loadAssessmentData(id) {
+        const { data: record, error } = await supabase.from('assessments').select('*').eq('id', id).single();
+        if (error || !record) {
+            console.error("Failed to load assessment data:", error);
+            return;
+        }
 
         // Populate location dropdowns manually so values can be set
-        const state = record.data['state'];
-        const district = record.data['district'];
-        const subdistrict = record.data['subdistrict'];
-        const village = record.data['village'];
+        const state = record.payload['secA-state'] || record.state;
+        const district = record.payload['secA-district'] || record.district;
+        const subdistrict = record.payload['secA-subdistrict'] || record.sub_district;
+        const village = record.payload['secA-village'] || record.village;
         
         if (state && locationData[state]) {
             document.getElementById('secA-state').value = state;
@@ -1053,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Restore habitations options manually because they are dynamically populated
         const habSelect = document.getElementById('secA-habitations');
-        const savedHabs = record.data['secA-habitations'] || record.data['habitations'];
+        const savedHabs = record.payload['secA-habitations'] || record.payload['habitations'];
         if (savedHabs) {
             const habsArr = savedHabs.split(',');
             habSelect.innerHTML = '';
@@ -1072,8 +1117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Naive population mapping for prototype
-        Object.keys(record.data).forEach(key => {
-            const val = record.data[key];
+        Object.keys(record.payload).forEach(key => {
+            const val = record.payload[key];
             if (val === undefined || val === null) return;
             
             // First try by ID directly
@@ -1112,7 +1157,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (record.status === 'Rejected') {
             document.getElementById('rejection-alert').classList.remove('hidden');
-            document.getElementById('rejection-reason-text').textContent = record.rejectionReason || 'No reason provided.';
+            document.getElementById('rejection-reason-text').textContent = record.rejection_reason || 'No reason provided.';
+            // BUG-F: For GP User, allow editing and re-submitting rejected forms
+            if (role === 'GP User') {
+                setFormReadOnly(false);
+                document.getElementById('gp-actions').style.display = 'flex';
+            }
         }
         
         if (role === 'State Admin' || record.status === 'Approved' || (role === 'GP User' && record.status === 'Submitted')) {
@@ -1129,15 +1179,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('secA-subdistrict').disabled = true;
         document.getElementById('secA-village').disabled = true;
 
-        // Visual feedback for uploaded proofs
-        if (record.data['inst-image-url']) {
+        // Visual feedback for uploaded proofs (BUG-H: escape URLs to prevent XSS)
+        if (record.payload['inst-image-url']) {
             const help = document.getElementById('inst-image-url').nextElementSibling;
-            if (help) help.innerHTML = `<a href="${record.data['inst-image-url']}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+            if (help) help.innerHTML = `<a href="${escapeHtml(record.payload['inst-image-url'])}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
         }
-        if (record.data['inst-video-url']) {
+        if (record.payload['inst-video-url']) {
             const help = document.getElementById('inst-video-url').nextElementSibling;
-            if (help) help.innerHTML = `<a href="${record.data['inst-video-url']}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+            if (help) help.innerHTML = `<a href="${escapeHtml(record.payload['inst-video-url'])}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
         }
+
+        // BUG-I: Re-trigger charge details toggle based on loaded data
+        const chargesLeviedEl = document.getElementById('secB-chargesLevied');
+        if (chargesLeviedEl) chargesLeviedEl.dispatchEvent(new Event('change'));
         
         // Re-trigger checks
         checkValidationHeader();
@@ -1147,20 +1201,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         isFormDirty = true;
     }
 
-    document.getElementById('save-draft-btn').addEventListener('click', () => {
-        saveAssessment('Draft');
+    document.getElementById('save-draft-btn').addEventListener('click', async () => {
+        await saveAssessment('Draft');
         isFormDirty = false;
         showToast('Draft Saved Successfully!');
     });
 
-    document.getElementById('save-exit-btn').addEventListener('click', () => {
-        saveAssessment('Draft');
+    document.getElementById('save-exit-btn').addEventListener('click', async () => {
+        await saveAssessment('Draft');
         isFormDirty = false;
         showToast('Draft Saved!');
         switchAppView('dashboard');
     });
 
-    document.getElementById('submit-assessment-btn').addEventListener('click', (e) => {
+    document.getElementById('submit-assessment-btn').addEventListener('click', async (e) => {
         e.preventDefault(); 
         
         const form = document.getElementById('assessment-form');
@@ -1225,34 +1279,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('secA-village').disabled = true;
     });
 
-    document.getElementById('preview-save-draft-btn')?.addEventListener('click', () => {
-        saveAssessment('Draft');
+    document.getElementById('preview-save-draft-btn')?.addEventListener('click', async () => {
+        await saveAssessment('Draft');
         isFormDirty = false;
         showToast('Draft Saved Successfully from Preview!');
     });
 
-    document.getElementById('final-submit-btn').addEventListener('click', () => {
-        saveAssessment('Submitted');
+    document.getElementById('final-submit-btn').addEventListener('click', async () => {
+        await saveAssessment('Submitted');
         isFormDirty = false;
         successModal.classList.remove('hidden');
     });
 
-    document.getElementById('approve-assessment-btn').addEventListener('click', () => {
+    document.getElementById('approve-assessment-btn').addEventListener('click', async () => {
         const id = document.getElementById('recordId').value;
-        // BUG-05: User-scoped localStorage
-        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-        const existingIndex = assessments.findIndex(a => a.id === id);
+        const { error } = await supabase.from('assessments').update({ status: 'Approved' }).eq('id', id);
         
-        if (existingIndex >= 0) {
-            assessments[existingIndex].status = 'Approved';
-            assessments[existingIndex].updatedAt = new Date().toISOString();
-            localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
+        if (error) {
+            alert('Failed to approve assessment: ' + error.message);
+        } else {
             showToast('Assessment Approved Successfully!');
             switchAppView('dashboard');
         }
     });
 
-    document.getElementById('reject-assessment-btn').addEventListener('click', () => {
+    document.getElementById('reject-assessment-btn').addEventListener('click', async () => {
         const reason = prompt('Please enter the reason for rejection:');
         if (!reason) {
             alert('Reason is required to reject a form.');
@@ -1260,16 +1311,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         const id = document.getElementById('recordId').value;
-        // BUG-05: User-scoped localStorage
-        const assessments = JSON.parse(localStorage.getItem(getStorageKey())) || [];
-        const existingIndex = assessments.findIndex(a => a.id === id);
         
-        if (existingIndex >= 0) {
-            assessments[existingIndex].status = 'Rejected';
-            assessments[existingIndex].rejectionReason = reason;
-            // BUG-17: Update updatedAt on rejection
-            assessments[existingIndex].updatedAt = new Date().toISOString();
-            localStorage.setItem(getStorageKey(), JSON.stringify(assessments));
+        const { error } = await supabase.from('assessments').update({ 
+            status: 'Rejected', 
+            rejection_reason: reason
+        }).eq('id', id);
+
+        if (error) {
+            alert('Failed to reject assessment: ' + error.message);
+        } else {
             showToast('Assessment Rejected');
             switchAppView('dashboard');
         }
@@ -1483,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 modal.style.justifyContent = 'center';
                 modal.style.alignItems = 'center';
                 
-                console.log("Modal forced to show!", modal);
+                // Modal shown
             } else {
                 alert("Could not find the modal element in the HTML.");
             }
