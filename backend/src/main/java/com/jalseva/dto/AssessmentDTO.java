@@ -1,5 +1,8 @@
 package com.jalseva.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 
 /**
@@ -8,12 +11,22 @@ import java.util.List;
  */
 public class AssessmentDTO {
 
+    @NotBlank(message = "Discussion date is required.")
     private String discussionDate;       // ISO date string (yyyy-MM-dd)
+
+    @NotBlank(message = "Reporting year is required.")
     private String reportingYear;        // e.g. "2025-26"
+
     private boolean vwscApproval;
     private boolean gramSabhaApproval;
+
+    @Positive(message = "Total households must be a positive number.")
     private int totalHouseholds;
+
+    @NotBlank(message = "Supply schedule is required.")
     private String supplySchedule;       // e.g. "24x7", "DAILY_ONCE", etc.
+
+    @Valid
     private List<DisruptionDTO> disruptions;
 
     // --- Constructors ---

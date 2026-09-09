@@ -1,13 +1,21 @@
 package com.jalseva.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
+
 /**
  * Represents a single supply-disruption record
  * within an assessment submission.
  */
 public class DisruptionDTO {
 
+    @NotBlank(message = "Disruption reason is required.")
     private String reason;
+
+    @PositiveOrZero(message = "Number of times must be zero or positive.")
     private int numberOfTimes;
+
+    @PositiveOrZero(message = "Resolution days must be zero or positive.")
     private int resolutionDays;
 
     // --- Constructors ---

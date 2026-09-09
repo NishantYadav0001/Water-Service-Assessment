@@ -40,7 +40,10 @@
                         <input type="password" id="loginPwd" required>
                     </div>
                     <button type="submit" class="btn-primary full-width mt-3" data-i18n="login">Login</button>
-                    <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
+                    <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
+                        <a href="#" id="show-forgot-password" style="color: var(--primary);" data-i18n="forgot_password">Forgot Password?</a>
+                    </p>
+                    <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
                         <span data-i18n="dont_have_account">Don't have an account?</span> <a href="#" id="show-register" style="color: var(--primary);" data-i18n="register_here">Register
                             here</a>
                     </p>
@@ -110,6 +113,83 @@
                             here</a>
                     </p>
                 </form>
+            </div>
+
+            <!-- Forgot Password View (3-Step OTP Flow) -->
+            <div id="forgot-password-view" class="view hidden">
+                <h2 data-i18n="forgot_password">Forgot Password</h2>
+
+                <!-- Step Indicators -->
+                <div class="step-indicator" id="otp-step-indicator">
+                    <div class="step active" id="step-dot-1"><span>1</span><small data-i18n="step_email">Email</small></div>
+                    <div class="step-line"></div>
+                    <div class="step" id="step-dot-2"><span>2</span><small data-i18n="step_verify">Verify</small></div>
+                    <div class="step-line"></div>
+                    <div class="step" id="step-dot-3"><span>3</span><small data-i18n="step_reset">Reset</small></div>
+                </div>
+
+                <!-- Step 1: Enter Email -->
+                <div id="otp-step-1">
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="otp_email_desc">Enter your registered email address and we'll send you a 6-digit verification code.</p>
+                    <form id="forgot-password-form">
+                        <div class="form-group">
+                            <label for="forgotEmail" data-i18n="gmail_address">Gmail Address</label>
+                            <input type="email" id="forgotEmail" required>
+                        </div>
+                        <button type="submit" class="btn-primary full-width mt-3" id="send-reset-btn" data-i18n="send_otp">Send OTP</button>
+                    </form>
+                    <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
+                        <a href="#" id="show-login-from-forgot" style="color: var(--primary);" data-i18n="back_to_login">← Back to Login</a>
+                    </p>
+                </div>
+
+                <!-- Step 2: Enter OTP -->
+                <div id="otp-step-2" class="hidden">
+                    <div id="otp-sent-msg" style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #ebf8ff; border-radius: var(--radius-md); color: #2b6cb0; font-size: 0.875rem;">
+                        <strong data-i18n="otp_sent">OTP Sent!</strong>
+                        <span data-i18n="otp_sent_desc">Check your email for a 6-digit code.</span>
+                    </div>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="enter_otp_desc">Enter the 6-digit verification code sent to your email.</p>
+                    <form id="verify-otp-form">
+                        <div class="otp-input-group" id="otp-inputs">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" aria-label="Digit 1">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 2">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 3">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 4">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 5">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 6">
+                        </div>
+                        <div id="otp-error" class="text-danger hidden" style="text-align: center; margin-top: 0.5rem;"></div>
+                        <button type="submit" class="btn-primary full-width mt-3" id="verify-otp-btn" data-i18n="verify_otp">Verify OTP</button>
+                    </form>
+                    <p class="text-center mt-3" style="font-size: 0.875rem;">
+                        <span id="resend-timer" class="resend-timer"></span>
+                        <a href="#" id="resend-otp-btn" class="hidden" style="color: var(--primary);" data-i18n="resend_otp">Resend OTP</a>
+                    </p>
+                    <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
+                        <a href="#" id="back-to-step1" style="color: var(--text-muted);" data-i18n="change_email">← Change Email</a>
+                    </p>
+                </div>
+
+                <!-- Step 3: Set New Password -->
+                <div id="otp-step-3" class="hidden">
+                    <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #c6f6d5; border-radius: var(--radius-md); color: #22543d; font-size: 0.875rem;">
+                        <strong>✓</strong> <span data-i18n="otp_verified">OTP verified successfully!</span>
+                    </div>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="set_new_password_desc">Choose a new password for your account.</p>
+                    <form id="update-password-form">
+                        <div class="form-group">
+                            <label for="newPassword" data-i18n="new_password">New Password</label>
+                            <input type="password" id="newPassword" required minlength="6">
+                        </div>
+                        <div class="form-group mt-2">
+                            <label for="confirmPassword" data-i18n="confirm_password">Confirm Password</label>
+                            <input type="password" id="confirmPassword" required minlength="6">
+                        </div>
+                        <div id="password-match-error" class="text-danger hidden" style="margin-top: 0.5rem;" data-i18n="passwords_dont_match">Passwords do not match.</div>
+                        <button type="submit" class="btn-primary full-width mt-3" id="update-password-btn" data-i18n="update_password">Update Password</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -703,7 +783,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="app.js?v=1788441263"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>

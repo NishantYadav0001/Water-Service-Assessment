@@ -1,6 +1,7 @@
 package com.jalseva.controller;
 
 import com.jalseva.dto.AssessmentDTO;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -32,23 +33,9 @@ public class AssessmentController {
      */
     @PostMapping("/submit")
     public ResponseEntity<Map<String, Object>> submitAssessment(
-            @RequestBody AssessmentDTO assessment) {
+            @Valid @RequestBody AssessmentDTO assessment) {
 
         log.info("Received assessment submission: {}", assessment);
-
-        // --- Basic server-side validation ---
-        if (assessment.getDiscussionDate() == null || assessment.getDiscussionDate().isBlank()) {
-            return badRequest("Discussion date is required.");
-        }
-        if (assessment.getReportingYear() == null || assessment.getReportingYear().isBlank()) {
-            return badRequest("Reporting year is required.");
-        }
-        if (assessment.getTotalHouseholds() <= 0) {
-            return badRequest("Total households must be a positive number.");
-        }
-        if (assessment.getSupplySchedule() == null || assessment.getSupplySchedule().isBlank()) {
-            return badRequest("Supply schedule is required.");
-        }
 
         // --- Build success response ---
         String referenceId = "JSA-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
