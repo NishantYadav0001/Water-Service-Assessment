@@ -10,6 +10,11 @@
 
 import { safeT } from './utils.js';
 
+// BUG-C4: Centralized Super Admin role check — handles both 'SuperAdmin' and 'Super Admin'
+function isSuperAdmin(role) {
+    return role === 'SuperAdmin' || role === 'Super Admin';
+}
+
 // --- DOM references (cached once) ---
 const authLayout = document.getElementById('auth-layout');
 const appLayout = document.getElementById('app-layout');
@@ -73,6 +78,18 @@ export function showApp() {
     appLayout.classList.add('active');
     document.getElementById('current-user-name').textContent = currentUser.email.split('@')[0] || currentUser.email;
 
+    // MISS-6: Display role badge next to username
+    const roleBadge = document.getElementById('current-user-role');
+    if (roleBadge) {
+        roleBadge.textContent = currentUser.role;
+        // Style based on role
+        roleBadge.className = 'role-badge';
+        if (isSuperAdmin(currentUser.role)) roleBadge.classList.add('role-superadmin');
+        else if (currentUser.role === 'State Admin') roleBadge.classList.add('role-stateadmin');
+        else if (currentUser.role === 'District Admin') roleBadge.classList.add('role-districtadmin');
+        else roleBadge.classList.add('role-gpuser');
+    }
+
     // Show nav toggle for State Admin and District Admin
     if (['State Admin', 'District Admin'].includes(currentUser.role)) {
         if (navToggleBtn) navToggleBtn.classList.remove('hidden');
@@ -100,7 +117,8 @@ export function showApp() {
         }
     }
 
-    if (currentUser.role === 'SuperAdmin' || currentUser.role === 'Super Admin') {
+    // BUG-C4: Normalized Super Admin check
+    if (isSuperAdmin(currentUser.role)) {
         switchAppView('superadmin');
         if (navToggleBtn) {
             navToggleBtn.setAttribute('data-i18n', 'dashboard');

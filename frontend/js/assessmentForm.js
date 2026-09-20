@@ -60,14 +60,17 @@ function renderHabitationTables() {
     habAdequacyTableBody.innerHTML = '';
 
     selected.forEach((hab, index) => {
+        // BUG-S5: Escape habitation names to prevent XSS
+        const safeHab = escapeHtml(hab);
+
         // FHTC Table
         const tr1 = document.createElement('tr');
-        tr1.innerHTML = `<td>${hab}</td><td><input type="number" name="hab_fhtc_${index}" class="table-input" min="0" required></td>`;
+        tr1.innerHTML = `<td>${safeHab}</td><td><input type="number" name="hab_fhtc_${index}" class="table-input" min="0" required></td>`;
         habFhtcTableBody.appendChild(tr1);
 
         // Adequacy Table
         const tr2 = document.createElement('tr');
-        tr2.innerHTML = `<td>${hab}</td><td><input type="number" name="hab_adeq_${index}" class="table-input" min="0" required></td>`;
+        tr2.innerHTML = `<td>${safeHab}</td><td><input type="number" name="hab_adeq_${index}" class="table-input" min="0" required></td>`;
         habAdequacyTableBody.appendChild(tr2);
     });
 }
@@ -257,10 +260,21 @@ async function loadAssessmentData(id) {
     if (record.status === 'Rejected') {
         document.getElementById('rejection-alert').classList.remove('hidden');
         document.getElementById('rejection-reason-text').textContent = record.rejection_reason || 'No reason provided.';
-        // BUG-F: For GP User, allow editing and re-submitting rejected forms
+        // BUG-F + BUG-S2: For GP User, allow editing and re-submitting rejected forms
         if (role === 'GP User') {
             setFormReadOnly(false);
             document.getElementById('gp-actions').style.display = 'flex';
+            // BUG-S2: Disable "Save Draft" for rejected forms to prevent losing rejection context
+            const saveDraftBtn = document.getElementById('save-draft-btn');
+            if (saveDraftBtn) {
+                saveDraftBtn.disabled = true;
+                saveDraftBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
+            }
+            const saveExitBtn = document.getElementById('save-exit-btn');
+            if (saveExitBtn) {
+                saveExitBtn.disabled = true;
+                saveExitBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
+            }
         }
     }
 
@@ -340,41 +354,70 @@ export async function openAssessmentForm(id = null) {
         document.getElementById('form-title-mode').textContent = 'New Assessment';
         document.getElementById('recordId').value = 'REC-' + Date.now();
 
-        // Auto-fill and lock location for GP User
-        if (session.role === 'GP User') {
-            if (session.state) {
-                document.getElementById('secA-state').value = session.state;
-                document.getElementById('secA-state').dispatchEvent(new Event('change'));
-            }
-            setTimeout(() => {
-                if (session.district) {
-                    document.getElementById('secA-district').value = session.district;
-                    document.getElementById('secA-district').dispatchEvent(new Event('change'));
-                }
-            }, 50);
-            setTimeout(() => {
-                if (session.sub_district) {
-                    document.getElementById('secA-subdistrict').value = session.sub_district;
-                    document.getElementById('secA-subdistrict').dispatchEvent(new Event('change'));
-                }
-            }, 100);
-            setTimeout(() => {
-                if (session.village) {
-                    document.getElementById('secA-village').value = session.village;
-                    document.getElementById('secA-village').dispatchEvent(new Event('change'));
-                }
-            }, 150);
+        // BUG-S2: Ensure save-draft buttons are re-enabled for new forms
+        const saveDraftBtn = document.getElementById('save-draft-btn');
+        if (saveDraftBtn) { saveDraftBtn.disabled = false; saveDraftBtn.title = ''; }
+        const saveExitBtn = document.getElementById('save-exit-btn');
+        if (saveExitBtn) { saveExitBtn.disabled = false; saveExitBtn.title = ''; }
 
-            setTimeout(() => {
-                document.getElementById('secA-state').disabled = true;
-                document.getElementById('secA-district').disabled = true;
-                document.getElementById('secA-subdistrict').disabled = true;
-                document.getElementById('secA-village').disabled = true;
-            }, 200);
+        // Auto-fill and lock location for GP User
+        // BUG-S3: Replaced fragile setTimeout chain with event-driven cascading
+        if (session.role === 'GP User') {
+            await autofillLocationCascade(session);
+
+            document.getElementById('secA-state').disabled = true;
+            document.getElementById('secA-district').disabled = true;
+            document.getElementById('secA-subdistrict').disabled = true;
+            document.getElementById('secA-village').disabled = true;
         }
     }
 
     // BUG-20: Removed duplicate switchAppView('assessment') call — already called at top of function
+}
+
+/**
+ * BUG-S3: Event-driven cascade for auto-filling location dropdowns.
+ * Waits for each dropdown to be populated before setting the next value.
+ */
+async function autofillLocationCascade(session) {
+    function waitForOptions(selectEl, maxWait = 2000) {
+        return new Promise(resolve => {
+            if (selectEl.options.length > 1) { resolve(); return; }
+            const observer = new MutationObserver(() => {
+                if (selectEl.options.length > 1) {
+                    observer.disconnect();
+                    resolve();
+                }
+            });
+            observer.observe(selectEl, { childList: true });
+            setTimeout(() => { observer.disconnect(); resolve(); }, maxWait);
+        });
+    }
+
+    const stateEl = document.getElementById('secA-state');
+    const distEl = document.getElementById('secA-district');
+    const subDistEl = document.getElementById('secA-subdistrict');
+    const villageEl = document.getElementById('secA-village');
+
+    if (session.state) {
+        stateEl.value = session.state;
+        stateEl.dispatchEvent(new Event('change'));
+    }
+    if (session.district) {
+        await waitForOptions(distEl);
+        distEl.value = session.district;
+        distEl.dispatchEvent(new Event('change'));
+    }
+    if (session.sub_district) {
+        await waitForOptions(subDistEl);
+        subDistEl.value = session.sub_district;
+        subDistEl.dispatchEvent(new Event('change'));
+    }
+    if (session.village) {
+        await waitForOptions(villageEl);
+        villageEl.value = session.village;
+        villageEl.dispatchEvent(new Event('change'));
+    }
 }
 
 /**
@@ -548,20 +591,37 @@ export function initAssessmentForm(deps) {
     schoolsTotalInput.addEventListener('input', validateSchoolsPiped);
     schoolsPipedInput.addEventListener('input', validateSchoolsPiped);
 
+    // MISS-11: Helper to disable/enable a button with loading text
+    function withLoading(btn, asyncFn) {
+        return async (...args) => {
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            try {
+                await asyncFn(...args);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        };
+    }
+
     // Save Draft
-    document.getElementById('save-draft-btn').addEventListener('click', async () => {
+    const saveDraftBtn = document.getElementById('save-draft-btn');
+    saveDraftBtn.addEventListener('click', withLoading(saveDraftBtn, async () => {
         await saveAssessment('Draft');
         _setIsFormDirty(false);
         showToast('Draft Saved Successfully!');
-    });
+    }));
 
     // Save & Exit
-    document.getElementById('save-exit-btn').addEventListener('click', async () => {
+    const saveExitBtn = document.getElementById('save-exit-btn');
+    saveExitBtn.addEventListener('click', withLoading(saveExitBtn, async () => {
         await saveAssessment('Draft');
         _setIsFormDirty(false);
         showToast('Draft Saved!');
         _switchAppView('dashboard');
-    });
+    }));
 
     // Submit Assessment (enters preview mode)
     document.getElementById('submit-assessment-btn').addEventListener('click', async (e) => {
@@ -637,17 +697,28 @@ export function initAssessmentForm(deps) {
         showToast('Draft Saved Successfully from Preview!');
     });
 
-    // Final Submit
-    document.getElementById('final-submit-btn').addEventListener('click', async () => {
+    // Final Submit (MISS-11: loading state)
+    const finalSubmitBtn = document.getElementById('final-submit-btn');
+    finalSubmitBtn.addEventListener('click', withLoading(finalSubmitBtn, async () => {
         await saveAssessment('Submitted');
         _setIsFormDirty(false);
         _successModal.classList.remove('hidden');
-    });
+    }));
 
-    // Approve Assessment (admin)
-    document.getElementById('approve-assessment-btn').addEventListener('click', async () => {
+    // Approve Assessment (admin) — MISS-7: Added confirmation + MISS-11: loading state
+    const approveBtn = document.getElementById('approve-assessment-btn');
+    approveBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to approve this assessment? This action cannot be undone.')) return;
+
+        const originalText = approveBtn.textContent;
+        approveBtn.disabled = true;
+        approveBtn.textContent = 'Approving...';
+
         const id = document.getElementById('recordId').value;
         const { error } = await supabase.from('assessments').update({ status: 'Approved' }).eq('id', id);
+
+        approveBtn.disabled = false;
+        approveBtn.textContent = originalText;
 
         if (error) {
             alert('Failed to approve assessment: ' + error.message);
@@ -657,13 +728,18 @@ export function initAssessmentForm(deps) {
         }
     });
 
-    // Reject Assessment (admin)
-    document.getElementById('reject-assessment-btn').addEventListener('click', async () => {
+    // Reject Assessment (admin) — MISS-11: loading state
+    const rejectBtn = document.getElementById('reject-assessment-btn');
+    rejectBtn.addEventListener('click', async () => {
         const reason = prompt('Please enter the reason for rejection:');
         if (!reason) {
             alert('Reason is required to reject a form.');
             return;
         }
+
+        const originalText = rejectBtn.textContent;
+        rejectBtn.disabled = true;
+        rejectBtn.textContent = 'Rejecting...';
 
         const id = document.getElementById('recordId').value;
 
@@ -671,6 +747,9 @@ export function initAssessmentForm(deps) {
             status: 'Rejected',
             rejection_reason: reason
         }).eq('id', id);
+
+        rejectBtn.disabled = false;
+        rejectBtn.textContent = originalText;
 
         if (error) {
             alert('Failed to reject assessment: ' + error.message);

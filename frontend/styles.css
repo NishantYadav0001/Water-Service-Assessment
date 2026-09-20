@@ -88,6 +88,50 @@ body {
     color: var(--text-muted);
 }
 
+/* MIN-6: Missing text-success utility */
+.text-success {
+    color: var(--success);
+    font-size: 0.875rem;
+}
+
+/* MIN-7: Missing bg-success utility */
+.bg-success {
+    background-color: var(--success) !important;
+    border-color: var(--success) !important;
+}
+
+/* MISS-6: Role badge in app header */
+.role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+}
+
+.role-superadmin {
+    background-color: #fed7d7;
+    color: #c53030;
+}
+
+.role-stateadmin {
+    background-color: #fefcbf;
+    color: #975a16;
+}
+
+.role-districtadmin {
+    background-color: #c6f6d5;
+    color: #276749;
+}
+
+.role-gpuser {
+    background-color: #bee3f8;
+    color: #2b6cb0;
+}
+
 /* Language Selector */
 .lang-select {
     padding: 0.25rem 0.5rem;

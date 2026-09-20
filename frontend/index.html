@@ -105,7 +105,7 @@
                     </div>
                     <div class="form-group">
                         <label for="regPwd" data-i18n="password">Password</label>
-                        <input type="password" id="regPwd" required>
+                        <input type="password" id="regPwd" required minlength="6">
                     </div>
                     <button type="submit" class="btn-primary full-width mt-3" data-i18n="register">Register</button>
                     <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
@@ -130,7 +130,7 @@
 
                 <!-- Step 1: Enter Email -->
                 <div id="otp-step-1">
-                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="otp_email_desc">Enter your registered email address and we'll send you a 6-digit verification code.</p>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="otp_email_desc">Enter your registered email address and we'll send you an 8-digit verification code.</p>
                     <form id="forgot-password-form">
                         <div class="form-group">
                             <label for="forgotEmail" data-i18n="gmail_address">Gmail Address</label>
@@ -147,9 +147,9 @@
                 <div id="otp-step-2" class="hidden">
                     <div id="otp-sent-msg" style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #ebf8ff; border-radius: var(--radius-md); color: #2b6cb0; font-size: 0.875rem;">
                         <strong data-i18n="otp_sent">OTP Sent!</strong>
-                        <span data-i18n="otp_sent_desc">Check your email for a 6-digit code.</span>
+                        <span data-i18n="otp_sent_desc">Check your email for an 8-digit code.</span>
                     </div>
-                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="enter_otp_desc">Enter the 6-digit verification code sent to your email.</p>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="enter_otp_desc">Enter the 8-digit verification code sent to your email.</p>
                     <form id="verify-otp-form">
                         <div class="otp-input-group" id="otp-inputs">
                             <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" aria-label="Digit 1">
@@ -158,6 +158,8 @@
                             <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 4">
                             <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 5">
                             <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 6">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 7">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 8">
                         </div>
                         <div id="otp-error" class="text-danger hidden" style="text-align: center; margin-top: 0.5rem;"></div>
                         <button type="submit" class="btn-primary full-width mt-3" id="verify-otp-btn" data-i18n="verify_otp">Verify OTP</button>
@@ -203,6 +205,7 @@
             <div class="header-user">
                 <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage Users</button>
                 <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
+                <span id="current-user-role" class="role-badge"></span>
                 <span id="current-user-name">User</span>
                 <button id="logout-btn" class="btn-outline btn-small" data-i18n="logout">Logout</button>
             </div>
@@ -465,7 +468,9 @@
                             <div class="form-group">
                                 <label data-i18n="reporting_year">Reporting Year <span class="text-danger">*</span></label>
                                 <select id="secA-year" required>
-                                    <option value="2025-26">2025-26</option>
+                                    <option value="2024-25">2024-25</option>
+                                    <option value="2025-26" selected>2025-26</option>
+                                    <option value="2026-27">2026-27</option>
                                 </select>
                             </div>
                             <div class="form-group">

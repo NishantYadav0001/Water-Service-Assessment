@@ -88,14 +88,14 @@ export async function renderDashboard() {
         query = query.eq('state', currentUser.state).neq('status', 'Draft');
     }
 
-    // Also apply location filters if set
-    const fState = document.getElementById('filter-state').value;
-    const fDist = document.getElementById('filter-district').value;
+    // BUG-S4: Apply location filters only when NOT already locked by role
+    const filterStateEl = document.getElementById('filter-state');
+    const filterDistEl = document.getElementById('filter-district');
     const fSub = document.getElementById('filter-subdistrict').value;
     const fVill = document.getElementById('filter-village').value;
 
-    if (fState) query = query.eq('state', fState);
-    if (fDist) query = query.eq('district', fDist);
+    if (!filterStateEl.disabled && filterStateEl.value) query = query.eq('state', filterStateEl.value);
+    if (!filterDistEl.disabled && filterDistEl.value) query = query.eq('district', filterDistEl.value);
     if (fSub) query = query.eq('sub_district', fSub);
     if (fVill) query = query.eq('village', fVill);
 
@@ -186,9 +186,30 @@ export async function renderDashboard() {
 
     document.querySelectorAll('.delete-record').forEach(btn => {
         btn.addEventListener('click', async (e) => {
+            const currentUser = _getCurrentUser();
+            // BUG-C6: Only GP Users can delete, and only Draft assessments
+            if (!currentUser || currentUser.role !== 'GP User') {
+                alert('Only GP Users can delete draft assessments.');
+                return;
+            }
             // BUG-02 + BUG-05: Safe translations + database delete
             if (confirm(safeT('delete_confirm', 'Are you sure you want to delete this draft?'))) {
                 const id = e.target.getAttribute('data-id');
+                // BUG-C6: Double-check status is Draft and user owns the record
+                const { data: record, error: fetchErr } = await supabase
+                    .from('assessments').select('status, user_id').eq('id', id).single();
+                if (fetchErr || !record) {
+                    alert('Failed to verify draft: ' + (fetchErr?.message || 'Not found'));
+                    return;
+                }
+                if (record.status !== 'Draft') {
+                    alert('Only draft assessments can be deleted.');
+                    return;
+                }
+                if (record.user_id !== currentUser.email) {
+                    alert('You can only delete your own drafts.');
+                    return;
+                }
                 const { error } = await supabase.from('assessments').delete().eq('id', id);
                 if (error) {
                     alert('Failed to delete draft: ' + error.message);
@@ -239,13 +260,14 @@ export function initDashboard(deps) {
         viewDraftsBtn.addEventListener('click', (e) => {
             showDraftsOnly = !showDraftsOnly;
             if (showDraftsOnly) {
-                e.target.textContent = window.t ? (window.t('all') + ' ' + window.t('assessment_records')) : 'View All Records';
+                // MIN-1: Use safeT instead of raw window.t
+                e.target.textContent = safeT('all', 'All') + ' ' + safeT('assessment_records', 'Records');
                 e.target.classList.replace('btn-outline', 'btn-secondary');
-                document.getElementById('records-card-title').textContent = window.t ? window.t('view_drafts') : 'Unfinished Assessment Forms';
+                document.getElementById('records-card-title').textContent = safeT('view_drafts', 'Unfinished Assessment Forms');
             } else {
-                e.target.textContent = window.t ? window.t('view_drafts') : 'View Unfinished Forms';
+                e.target.textContent = safeT('view_drafts', 'View Unfinished Forms');
                 e.target.classList.replace('btn-secondary', 'btn-outline');
-                document.getElementById('records-card-title').textContent = window.t ? window.t('assessment_records') : 'Assessment Records';
+                document.getElementById('records-card-title').textContent = safeT('assessment_records', 'Assessment Records');
             }
             renderDashboard();
         });
@@ -254,4 +276,18 @@ export function initDashboard(deps) {
     // Search button
     const searchRecordsBtn = document.getElementById('search-records-btn');
     if (searchRecordsBtn) searchRecordsBtn.addEventListener('click', renderDashboard);
+
+    // BUG-S6: Auto-refresh dashboard when filter dropdowns change
+    ['filter-state', 'filter-district', 'filter-subdistrict', 'filter-village'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                // Only refresh if we're on the dashboard and have a logged-in user
+                const dashView = document.getElementById('dashboard-view');
+                if (dashView && !dashView.classList.contains('hidden') && _getCurrentUser()) {
+                    renderDashboard();
+                }
+            });
+        }
+    });
 }

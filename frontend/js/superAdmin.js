@@ -164,12 +164,18 @@ export async function renderSuperAdminDashboard() {
             let loc = [u.state, u.district, u.sub_district, u.village].filter(Boolean).join(', ');
             if (!loc) loc = 'N/A';
 
+            // BUG-C3: Show warning for elevated role requests
+            const isElevatedRole = u.role !== 'GP User';
+            const roleWarning = isElevatedRole
+                ? `<span class="badge badge-rejected" style="font-size:0.7rem; margin-left:4px;" title="This user is requesting an admin role. Verify their identity carefully before approving.">⚠ Elevated Role!</span>`
+                : '';
+
             // BUG-06: Escape user-supplied data + BUG-13: use correct badge classes
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${escapeHtml(u.email.split('@')[0])}</td>
                 <td>${escapeHtml(u.email)}</td>
-                <td><span class="badge ${u.role === 'GP User' ? 'badge-submitted' : 'badge-approved'}">${escapeHtml(u.role)}</span></td>
+                <td><span class="badge ${u.role === 'GP User' ? 'badge-submitted' : 'badge-approved'}">${escapeHtml(u.role)}</span>${roleWarning}</td>
                 <td><small>${escapeHtml(loc)}</small></td>
                 <td>
                     <button class="btn-outline btn-small view-id-btn" data-email="${escapeHtml(u.email)}">View Details</button>
@@ -228,12 +234,13 @@ export function initSuperAdmin(deps) {
             } else if (btn.classList.contains('reject-user-btn')) {
                 rejectUser(email);
             } else if (btn.classList.contains('delete-user-btn')) {
-                if (confirm(`Are you sure you want to delete the user ${email}? This action cannot be undone.`)) {
+                // BUG-C5: Warn that only the profile is deleted, not the auth account
+                if (confirm(`Are you sure you want to delete the user ${email}?\n\n⚠️ Note: This removes the user profile from the system. The authentication account will still exist in Supabase Auth and must be removed separately from the Supabase dashboard.`)) {
                     const { error } = await supabase.from('profiles').delete().eq('email', email);
                     if (error) {
                         alert('Error deleting user: ' + error.message);
                     } else {
-                        alert('User deleted successfully.');
+                        alert('User profile deleted successfully.\n\nReminder: Please also delete their auth account from the Supabase dashboard to prevent re-login issues.');
                         renderSuperAdminDashboard();
                     }
                 }

@@ -16,6 +16,7 @@ import { isLocationDataReady } from './locations.js';
 let currentUser = null;
 let isRegistering = false;
 let isFormDirty = false;
+let isRecoveringPassword = false;
 
 // Injected dependencies
 let _showApp = null;
@@ -90,6 +91,12 @@ export function initAuth(deps) {
     let sessionInitialized = false;
 
     supabase.auth.onAuthStateChange(async (event, session) => {
+        // BUG-C5: Prevent the auth state listener from hijacking the UI during a password reset.
+        // When verifyOtp(type: 'recovery') succeeds, Supabase emits SIGNED_IN/PASSWORD_RECOVERY.
+        if (isRecoveringPassword) {
+            return; // Stay on the forgot password view!
+        }
+
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
             if (!sessionInitialized || event === 'SIGNED_IN') {
                 sessionInitialized = true;
@@ -232,6 +239,7 @@ export function initAuth(deps) {
     // Helper: reset the entire forgot-password view to step 1
     function resetOtpFlow() {
         otpEmail = '';
+        isRecoveringPassword = false;
         if (resendCooldownTimer) {
             clearInterval(resendCooldownTimer);
             resendCooldownTimer = null;
@@ -252,6 +260,10 @@ export function initAuth(deps) {
     if (forgotPasswordForm) {
         forgotPasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Set flag so auth listener ignores the resulting SIGNED_IN event from OTP verification
+            isRecoveringPassword = true;
+
             const email = document.getElementById('forgotEmail').value.trim();
             const btn = document.getElementById('send-reset-btn');
 
@@ -284,8 +296,8 @@ export function initAuth(deps) {
             const otpError = document.getElementById('otp-error');
             const inputs = document.querySelectorAll('#otp-inputs .otp-input');
 
-            if (token.length !== 6) {
-                otpError.textContent = 'Please enter all 6 digits.';
+            if (token.length !== 8) {
+                otpError.textContent = 'Please enter all 8 digits.';
                 otpError.classList.remove('hidden');
                 inputs.forEach(i => i.classList.add('error'));
                 return;
@@ -456,6 +468,18 @@ export function initAuth(deps) {
         if (role === 'GP User' && !subdistrict) { alert('Please select a Sub-District.'); return; }
         if (role === 'GP User' && !village) { alert('Please select a Village.'); return; }
         if (!idProofFile) { alert('Please upload an ID proof.'); return; }
+
+        // MISS-10: Validate ID proof file size (max 2 MB)
+        if (idProofFile.size > 2 * 1024 * 1024) {
+            alert('ID proof file must be less than 2 MB.');
+            return;
+        }
+
+        // MISS-5: Password strength validation
+        if (pwd.length < 6) {
+            alert('Password must be at least 6 characters long.');
+            return;
+        }
 
         // Upload ID proof
         const fileName = `${Date.now()}_${idProofFile.name}`;
