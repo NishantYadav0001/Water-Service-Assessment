@@ -79,7 +79,7 @@ export function switchAppView(view) {
     }
 }
 
-export function showApp() {
+export async function showApp() {
     const currentUser = _getCurrentUser();
 
     authLayout.classList.remove('active');
@@ -90,7 +90,7 @@ export function showApp() {
     // Lazy-load location data on first login (avoids 15MB download on unauthenticated visits)
     if (!_locationsLoaded && _loadLocations) {
         _locationsLoaded = true;
-        _loadLocations();
+        await _loadLocations();
     }
 
     document.getElementById('current-user-name').textContent = currentUser.email.split('@')[0] || currentUser.email;

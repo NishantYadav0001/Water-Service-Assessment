@@ -10,6 +10,7 @@
 import { supabase } from './supabaseClient.js';
 import { escapeHtml, showToast } from './utils.js';
 import { getLocationData, populateSelect } from './locations.js';
+import { showPrompt } from './modal.js';
 
 // Injected dependencies
 let _getCurrentUser = null;
@@ -387,6 +388,16 @@ export async function openAssessmentForm(id = null) {
     _switchAppView('assessment');
     document.getElementById('assessment-form').reset();
 
+    // Clear custom file upload states and restore original help text
+    instImageUrl.value = '';
+    instVideoUrl.value = '';
+    
+    const imgHelp = instImageProof.parentElement.querySelector('small');
+    if (imgHelp) imgHelp.innerHTML = window.t ? window.t('image_proof_help') : 'Max size 1 MB';
+    
+    const vidHelp = instVideoProof.parentElement.querySelector('small');
+    if (vidHelp) vidHelp.innerHTML = window.t ? window.t('video_proof_help') : 'Max size 5 MB, Max length 2 min';
+
     // Listen to form inputs to mark form as dirty
     const form = document.getElementById('assessment-form');
     form.removeEventListener('input', markFormDirty);
@@ -412,6 +423,12 @@ export async function openAssessmentForm(id = null) {
     document.body.classList.remove('preview-banner-active');
     document.getElementById('consent-modal').classList.add('hidden');
     setFormReadOnly(false);
+
+    // Clean up any lingering data-locked attributes from previous sessions
+    ['secA-state', 'secA-district', 'secA-subdistrict', 'secA-village'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.removeAttribute('data-locked');
+    });
 
     // If admin, lock the form BEFORE loading data (so it's never editable even briefly)
     if (isAdmin) {
@@ -443,12 +460,21 @@ export async function openAssessmentForm(id = null) {
             }
 
             // Auto-fill and lock location for GP User
-            if (session.role === 'GP User') {
-                await autofillLocationCascade(session);
-                document.getElementById('secA-state').disabled = true;
-                document.getElementById('secA-district').disabled = true;
-                document.getElementById('secA-subdistrict').disabled = true;
-                document.getElementById('secA-village').disabled = true;
+            if (session && session.role && String(session.role).trim().toLowerCase() === 'gp user') {
+                try {
+                    await autofillLocationCascade(session);
+                } catch (e) {
+                    console.error("Error during location autofill:", e);
+                } finally {
+                    const fields = ['secA-state', 'secA-district', 'secA-subdistrict', 'secA-village'];
+                    fields.forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.setAttribute('data-locked', 'true');
+                            el.disabled = true;
+                        }
+                    });
+                }
             }
         }
     } catch (err) {
@@ -496,18 +522,16 @@ export async function openAssessmentForm(id = null) {
  * Waits for each dropdown to be populated before setting the next value.
  */
 async function autofillLocationCascade(session) {
-    function waitForOptions(selectEl, maxWait = 2000) {
-        return new Promise(resolve => {
-            if (selectEl.options.length > 1) { resolve(); return; }
-            const observer = new MutationObserver(() => {
-                if (selectEl.options.length > 1) {
-                    observer.disconnect();
-                    resolve();
-                }
-            });
-            observer.observe(selectEl, { childList: true });
-            setTimeout(() => { observer.disconnect(); resolve(); }, maxWait);
-        });
+    const locationData = getLocationData();
+
+    // Helper for case-insensitive and space-trimmed key lookup
+    function findKey(obj, searchKey) {
+        if (!obj || !searchKey) return null;
+        const search = String(searchKey).trim().toLowerCase();
+        for (const k of Object.keys(obj)) {
+            if (k.trim().toLowerCase() === search) return k;
+        }
+        return null;
     }
 
     const stateEl = document.getElementById('secA-state');
@@ -515,24 +539,28 @@ async function autofillLocationCascade(session) {
     const subDistEl = document.getElementById('secA-subdistrict');
     const villageEl = document.getElementById('secA-village');
 
-    if (session.state) {
-        stateEl.value = session.state;
-        stateEl.dispatchEvent(new Event('change'));
-    }
-    if (session.district) {
-        await waitForOptions(distEl);
-        distEl.value = session.district;
-        distEl.dispatchEvent(new Event('change'));
-    }
-    if (session.sub_district) {
-        await waitForOptions(subDistEl);
-        subDistEl.value = session.sub_district;
-        subDistEl.dispatchEvent(new Event('change'));
-    }
-    if (session.village) {
-        await waitForOptions(villageEl);
-        villageEl.value = session.village;
-        villageEl.dispatchEvent(new Event('change'));
+    const state = findKey(locationData, session.state);
+    if (state) {
+        stateEl.value = state;
+        populateSelect(distEl, Object.keys(locationData[state]).sort(), 'Select District');
+
+        const district = findKey(locationData[state], session.district);
+        if (district) {
+            distEl.value = district;
+            populateSelect(subDistEl, Object.keys(locationData[state][district]).sort(), 'Select Sub-District');
+
+            const subdistrict = findKey(locationData[state][district], session.sub_district);
+            if (subdistrict) {
+                subDistEl.value = subdistrict;
+                populateSelect(villageEl, locationData[state][district][subdistrict].sort(), 'Select Village');
+
+                const village = findKey(Object.fromEntries(locationData[state][district][subdistrict].map(v => [v, v])), session.village);
+                if (village) {
+                    villageEl.value = village;
+                    villageEl.dispatchEvent(new Event('change'));
+                }
+            }
+        }
     }
 }
 
@@ -661,8 +689,8 @@ export function initAssessmentForm(deps) {
         }
     });
 
-    addHabBtn.addEventListener('click', () => {
-        const name = prompt('Enter Habitation Name:');
+    addHabBtn.addEventListener('click', async () => {
+        const name = await showPrompt('Enter Habitation Name:', 'Add Habitation');
         if (name) {
             const opt = document.createElement('option');
             opt.value = name;
@@ -898,6 +926,9 @@ export function initAssessmentForm(deps) {
     const consentHint = document.getElementById('consent-agree-hint');
 
     function validateConsentForm() {
+        // Auto-convert typed characters to uppercase
+        consentAgreeInput.value = consentAgreeInput.value.toUpperCase();
+        
         const agreeTyped = consentAgreeInput.value.trim() === 'AGREE';
         const checkboxChecked = consentDeclCheckbox.checked;
 
@@ -905,7 +936,7 @@ export function initAssessmentForm(deps) {
         if (consentAgreeInput.value.trim().length === 0) {
             consentAgreeInput.className = 'consent-text-input';
             consentHint.className = 'consent-hint';
-            consentHint.textContent = 'You must type exactly "AGREE" (case-sensitive)';
+            consentHint.textContent = 'Please type "AGREE" to proceed';
         } else if (agreeTyped) {
             consentAgreeInput.className = 'consent-text-input valid';
             consentHint.className = 'consent-hint valid';
@@ -913,7 +944,7 @@ export function initAssessmentForm(deps) {
         } else {
             consentAgreeInput.className = 'consent-text-input invalid';
             consentHint.className = 'consent-hint invalid';
-            consentHint.textContent = '✗ Please type exactly "AGREE" (case-sensitive)';
+            consentHint.textContent = '✗ Please type "AGREE"';
         }
 
         // Enable/disable submit button
@@ -931,7 +962,7 @@ export function initAssessmentForm(deps) {
     // Confirm & Submit from consent modal
     consentSubmitBtn.addEventListener('click', withLoading(consentSubmitBtn, async () => {
         // Double-check consent conditions
-        if (consentAgreeInput.value.trim() !== 'AGREE' || !consentDeclCheckbox.checked) {
+        if (consentAgreeInput.value.trim().toUpperCase() !== 'AGREE' || !consentDeclCheckbox.checked) {
             showToast('Please complete all consent requirements before submitting.', 'error');
             return;
         }
@@ -973,7 +1004,7 @@ export function initAssessmentForm(deps) {
     // Reject Assessment (admin) — MISS-11: loading state
     const rejectBtn = document.getElementById('reject-assessment-btn');
     rejectBtn.addEventListener('click', async () => {
-        const reason = prompt('Please enter the reason for rejection:');
+        const reason = await showPrompt('Please enter the reason for rejection:', 'Reject Assessment');
         if (!reason) {
             alert('Reason is required to reject a form.');
             return;

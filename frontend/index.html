@@ -876,7 +876,7 @@
                     <input type="text" id="consent-agree-input" class="consent-text-input" placeholder="Type AGREE here"
                         autocomplete="off" spellcheck="false">
                     <small id="consent-agree-hint" class="consent-hint" data-i18n="consent_hint">
-                        You must type exactly "AGREE" (case-sensitive)
+                        Please type "AGREE" to proceed
                     </small>
                 </div>
 
@@ -938,14 +938,16 @@
         </div>
     </div>
 
-    <!-- Confirm Modal (replaces native alert/confirm) -->
+    <!-- Confirm Modal (replaces native alert/confirm/prompt) -->
     <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 500px;">
             <h3 id="confirm-modal-title">Confirm</h3>
             <div class="confirm-modal-body">
                 <p id="confirm-modal-message"></p>
+                <textarea id="confirm-modal-prompt-input" class="hidden" rows="3" placeholder="Enter reason here..."
+                    style="width: 100%; margin-top: 15px; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color); font-family: inherit; font-size: 0.95rem; resize: vertical; box-shadow: inset 0 1px 3px rgba(0,0,0,0.06);"></textarea>
             </div>
-            <div class="confirm-modal-actions">
+            <div class="confirm-modal-actions" style="margin-top: 20px;">
                 <button class="btn-outline" id="confirm-modal-cancel">Cancel</button>
                 <button class="btn-primary" id="confirm-modal-ok">OK</button>
             </div>

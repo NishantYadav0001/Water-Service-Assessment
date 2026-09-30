@@ -79,7 +79,9 @@ export function populateSelect(selectEl, options, defaultText) {
     });
     const form = selectEl.closest('form');
     if (!(form && form.classList.contains('readonly-mode'))) {
-        selectEl.disabled = options.length === 0;
+        if (!selectEl.hasAttribute('data-locked')) {
+            selectEl.disabled = options.length === 0;
+        }
     }
 }
 

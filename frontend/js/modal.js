@@ -7,11 +7,13 @@
  * Exports:
  *   showAlert(msg, title?)    — styled alert, returns Promise<void>
  *   showConfirm(msg, title?)  — styled confirm, returns Promise<boolean>
+ *   showPrompt(msg, title?)   — styled prompt, returns Promise<string | null>
  */
 
 const modal = document.getElementById('confirm-modal');
 const modalTitle = document.getElementById('confirm-modal-title');
 const modalMessage = document.getElementById('confirm-modal-message');
+const promptInput = document.getElementById('confirm-modal-prompt-input');
 const cancelBtn = document.getElementById('confirm-modal-cancel');
 const okBtn = document.getElementById('confirm-modal-ok');
 
@@ -120,5 +122,39 @@ export async function showAlert(msg, title = 'Notice') {
  * @returns {Promise<boolean>} true if OK, false if Cancel/Escape
  */
 export function showConfirm(msg, title = 'Confirm') {
+    if (promptInput) {
+        promptInput.classList.add('hidden');
+        promptInput.value = '';
+    }
     return openModal(msg, title, true);
+}
+
+/**
+ * Show a styled prompt dialog (input + OK/Cancel buttons).
+ * @param {string} msg - Message to display
+ * @param {string} [title='Prompt'] - Modal title
+ * @returns {Promise<string | null>} string if OK, null if Cancel/Escape
+ */
+export function showPrompt(msg, title = 'Prompt') {
+    return new Promise(resolve => {
+        if (!promptInput) {
+            resolve(prompt(msg)); // Fallback
+            return;
+        }
+        
+        promptInput.classList.remove('hidden');
+        promptInput.value = '';
+        
+        openModal(msg, title, true).then(confirmed => {
+            promptInput.classList.add('hidden');
+            if (confirmed) {
+                resolve(promptInput.value.trim());
+            } else {
+                resolve(null);
+            }
+        });
+        
+        // Auto-focus input
+        setTimeout(() => promptInput.focus(), 50);
+    });
 }
