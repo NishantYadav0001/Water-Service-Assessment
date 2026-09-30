@@ -328,6 +328,9 @@ export function initNavigation(deps) {
     // Nav toggle (Manage Users ↔ Dashboard)
     if (navToggleBtn) {
         navToggleBtn.addEventListener('click', () => {
+            if (_getIsFormDirty()) {
+                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
+            }
             const isUserManagement = superadminView && superadminView.classList.contains('active');
             if (isUserManagement) {
                 switchAppView('dashboard');

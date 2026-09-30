@@ -108,7 +108,7 @@ export function initAuth(deps) {
         }
 
         if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-            if (!sessionInitialized || event === 'SIGNED_IN') {
+            if (!sessionInitialized) {
                 sessionInitialized = true;
                 await loadCurrentUserProfile(session.user.email);
             }
