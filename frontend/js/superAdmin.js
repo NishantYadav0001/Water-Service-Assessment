@@ -9,6 +9,7 @@
 
 import { supabase } from './supabaseClient.js';
 import { escapeHtml, debounce } from './utils.js';
+import { showPrompt, showConfirm, showAlert } from './modal.js';
 
 let allFetchedUsersCache = [];
 
@@ -23,11 +24,18 @@ function renderUserRow(u, tbody) {
 
     const currentUser = _getCurrentUser();
     const isSuperAdmin = currentUser && String(currentUser.role).trim().toLowerCase().replace(/\s+/g, '') === 'superadmin';
+    const targetIsSuperAdmin = u && String(u.role).trim().toLowerCase().replace(/\s+/g, '') === 'superadmin';
 
-    let actions = `
-        <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>
-    `;
-    if (u.role === 'GP User' || isSuperAdmin) {
+    let canDelete = true;
+    if (currentUser.role === 'District Admin' && u.role !== 'GP User') canDelete = false;
+    if (currentUser.role === 'State Admin' && (u.role === 'State Admin' || targetIsSuperAdmin)) canDelete = false;
+
+    let actions = '';
+    if (canDelete) {
+        actions += `<button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>`;
+    }
+    
+    if (canDelete) {
         if (u.account_status === 'frozen') {
             actions += ` <button class="btn-outline btn-small unfreeze-user-btn text-success" data-email="${escapeHtml(u.email)}">Unfreeze</button>`;
         } else {
@@ -128,16 +136,18 @@ function viewUserDetails(email) {
 }
 
 async function approveUser(email) {
-    if (!confirm('Are you sure you want to approve this user?')) return;
-    const { error } = await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
-    if (error) alert("Error approving: " + error.message);
+    const confirmed = await showConfirm('Are you sure you want to approve this user?', 'Approve User');
+    if (!confirmed) return;
+    const { error } = await supabase.from('profiles').update({ account_status: 'approved', status_reason: null }).eq('email', email);
+    if (error) showAlert("Error approving: " + error.message, 'Error');
     else renderSuperAdminDashboard();
 }
 
 async function rejectUser(email) {
-    if (!confirm('Are you sure you want to reject this user?')) return;
-    const { error } = await supabase.from('profiles').update({ account_status: 'rejected' }).eq('email', email);
-    if (error) alert("Error rejecting: " + error.message);
+    const reason = await showPrompt(`Please enter the reason for rejecting user ${email}:`, 'Reject User');
+    if (reason === null) return;
+    const { error } = await supabase.from('profiles').update({ account_status: 'rejected', status_reason: reason }).eq('email', email);
+    if (error) showAlert("Error rejecting: " + error.message, 'Error');
     else renderSuperAdminDashboard();
 }
 
@@ -262,39 +272,53 @@ export function initSuperAdmin(deps) {
             } else if (btn.classList.contains('reject-user-btn')) {
                 rejectUser(email);
             } else if (btn.classList.contains('freeze-user-btn')) {
-                if (confirm(`Are you sure you want to freeze the user ${email}?`)) {
-                    const { error } = await supabase.from('profiles').update({ account_status: 'frozen' }).eq('email', email);
-                    if (error) alert('Error freezing user: ' + error.message);
-                    else renderSuperAdminDashboard();
-                }
+                const reason = await showPrompt(`Please enter the reason for freezing user ${email}:`, 'Freeze User');
+                if (reason === null) return;
+                const { error } = await supabase.from('profiles').update({ account_status: 'frozen', status_reason: reason }).eq('email', email);
+                if (error) showAlert('Error freezing user: ' + error.message, 'Error');
+                else renderSuperAdminDashboard();
             } else if (btn.classList.contains('unfreeze-user-btn')) {
-                if (confirm(`Are you sure you want to unfreeze the user ${email}?`)) {
-                    const { error } = await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
-                    if (error) alert('Error unfreezing user: ' + error.message);
-                    else renderSuperAdminDashboard();
-                }
+                const confirmed = await showConfirm(`Are you sure you want to unfreeze the user ${email}?`, 'Unfreeze User');
+                if (!confirmed) return;
+                const { error } = await supabase.from('profiles').update({ account_status: 'approved', status_reason: null }).eq('email', email);
+                if (error) showAlert('Error unfreezing user: ' + error.message, 'Error');
+                else renderSuperAdminDashboard();
             } else if (btn.classList.contains('restrict-user-btn')) {
-                if (confirm(`Are you sure you want to restrict the user ${email} from filing assessments?`)) {
-                    const { error } = await supabase.from('profiles').update({ account_status: 'restricted' }).eq('email', email);
-                    if (error) alert('Error restricting user: ' + error.message);
-                    else renderSuperAdminDashboard();
-                }
+                const reason = await showPrompt(`Please enter the reason for restricting user ${email} from filing assessments:`, 'Restrict User');
+                if (reason === null) return;
+                const { error } = await supabase.from('profiles').update({ account_status: 'restricted', status_reason: reason }).eq('email', email);
+                if (error) showAlert('Error restricting user: ' + error.message, 'Error');
+                else renderSuperAdminDashboard();
             } else if (btn.classList.contains('unrestrict-user-btn')) {
-                if (confirm(`Are you sure you want to remove restrictions for user ${email}?`)) {
-                    const { error } = await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
-                    if (error) alert('Error unrestricting user: ' + error.message);
-                    else renderSuperAdminDashboard();
-                }
+                const confirmed = await showConfirm(`Are you sure you want to remove restrictions for user ${email}?`, 'Unrestrict User');
+                if (!confirmed) return;
+                const { error } = await supabase.from('profiles').update({ account_status: 'approved', status_reason: null }).eq('email', email);
+                if (error) showAlert('Error unrestricting user: ' + error.message, 'Error');
+                else renderSuperAdminDashboard();
             } else if (btn.classList.contains('delete-user-btn')) {
-                // BUG-C5: Warn that only the profile is deleted, not the auth account
-                if (confirm(`Are you sure you want to delete the user ${email}?\n\n⚠️ Note: This removes the user profile from the system. The authentication account will still exist in Supabase Auth and must be removed separately from the Supabase dashboard.`)) {
-                    const { error } = await supabase.from('profiles').delete().eq('email', email);
-                    if (error) {
-                        alert('Error deleting user: ' + error.message);
-                    } else {
-                        alert('User profile deleted successfully.\n\nReminder: Please also delete their auth account from the Supabase dashboard to prevent re-login issues.');
-                        renderSuperAdminDashboard();
+                const currentUser = _getCurrentUser();
+                const targetUser = allFetchedUsersCache.find(u => u.email === email);
+                if (targetUser) {
+                    const isTargetUserSuperAdmin = String(targetUser.role).trim().toLowerCase().replace(/\s+/g, '') === 'superadmin';
+                    if (currentUser.role === 'District Admin' && targetUser.role !== 'GP User') {
+                        showAlert('Security Error: District Admins cannot delete admin users.', 'Access Denied');
+                        return;
                     }
+                    if (currentUser.role === 'State Admin' && (targetUser.role === 'State Admin' || isTargetUserSuperAdmin)) {
+                        showAlert('Security Error: State Admins cannot delete other State Admins or Super Admins.', 'Access Denied');
+                        return;
+                    }
+                }
+
+                // BUG-C5: Warn that only the profile is deleted, not the auth account
+                const confirmed = await showConfirm(`Are you sure you want to delete the user ${email}?\n\n⚠️ Note: This removes the user profile completely. The user will not be able to see a reason because their profile will no longer exist. If you want to show them a reason, Freeze or Reject them instead.`, 'Delete User');
+                if (!confirmed) return;
+                const { error } = await supabase.from('profiles').delete().eq('email', email);
+                if (error) {
+                    showAlert('Error deleting user: ' + error.message, 'Error');
+                } else {
+                    showAlert('User profile deleted successfully.\n\nReminder: Please also delete their auth account from the Supabase dashboard to prevent re-login issues.', 'Success');
+                    renderSuperAdminDashboard();
                 }
             }
         });

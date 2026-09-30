@@ -12,6 +12,7 @@
 
 import { supabase } from './supabaseClient.js';
 import { isLocationDataReady } from './locations.js';
+import { showAlert } from './modal.js';
 
 let currentUser = null;
 let isRegistering = false;
@@ -56,24 +57,27 @@ async function loadCurrentUserProfile(email) {
     const { data: profile, error } = await supabase.from('profiles').select('*').eq('email', email).single();
     if (error || !profile) {
         if (!isRegistering) {
-            alert("Profile not found. If your account was deleted by an admin, please register again using your existing password.");
+            showAlert("Profile not found. If your account was deleted by an admin, please register again using your existing password.", "Access Denied");
             await supabase.auth.signOut();
         }
         return;
     }
 
     if (profile.account_status === 'pending') {
-        alert('Access Denied: Your account is still pending Super Admin approval.');
+        showAlert('Your account is still pending Super Admin approval.', 'Access Denied');
         await supabase.auth.signOut();
         return;
     }
+    
+    let reasonText = profile.status_reason ? `\n\nReason provided by Admin: "${profile.status_reason}"` : '';
+    
     if (profile.account_status === 'rejected') {
-        alert('Access Denied: Your registration was rejected.');
+        showAlert('Your registration was rejected.' + reasonText, 'Access Denied');
         await supabase.auth.signOut();
         return;
     }
     if (profile.account_status === 'frozen') {
-        alert('Access Denied: Your account has been frozen.');
+        showAlert('Your account has been frozen.' + reasonText, 'Access Denied');
         await supabase.auth.signOut();
         return;
     }
