@@ -32,6 +32,9 @@ let _renderSuperAdminDashboard = null;
 let _logout = null;
 let _setShowDraftsOnly = null;
 let _successModal = null;
+let _getResetOtpFlow = null;
+let _loadLocations = null;
+let _locationsLoaded = false;
 
 export function switchAppView(view) {
     dashboardView.classList.add('hidden');
@@ -76,6 +79,13 @@ export function showApp() {
     authLayout.classList.add('hidden');
     appLayout.classList.remove('hidden');
     appLayout.classList.add('active');
+
+    // Lazy-load location data on first login (avoids 15MB download on unauthenticated visits)
+    if (!_locationsLoaded && _loadLocations) {
+        _locationsLoaded = true;
+        _loadLocations();
+    }
+
     document.getElementById('current-user-name').textContent = currentUser.email.split('@')[0] || currentUser.email;
 
     // MISS-6: Display role badge next to username
@@ -150,7 +160,8 @@ export function showAuth() {
     }
 
     // Reset OTP flow to step 1 if it was in progress
-    if (window._resetOtpFlow) window._resetOtpFlow();
+    const resetOtpFlow = _getResetOtpFlow ? _getResetOtpFlow() : null;
+    if (resetOtpFlow) resetOtpFlow();
 }
 
 /**
@@ -173,6 +184,8 @@ export function initNavigation(deps) {
     _logout = deps.logout;
     _setShowDraftsOnly = deps.setShowDraftsOnly;
     _successModal = deps.successModal;
+    _getResetOtpFlow = deps.getResetOtpFlow;
+    _loadLocations = deps.loadLocations;
 
     // Back to dashboard
     document.getElementById('back-to-dashboard').addEventListener('click', () => {
@@ -241,7 +254,8 @@ export function initNavigation(deps) {
             forgotPasswordView.classList.add('active');
             
             // Reset OTP flow to step 1
-            if (window._resetOtpFlow) window._resetOtpFlow();
+            const resetOtpFlow = _getResetOtpFlow ? _getResetOtpFlow() : null;
+            if (resetOtpFlow) resetOtpFlow();
         });
     }
 
@@ -256,7 +270,8 @@ export function initNavigation(deps) {
             }
             loginView.classList.remove('hidden');
             loginView.classList.add('active');
-            if (window._resetOtpFlow) window._resetOtpFlow();
+            const resetOtpFlow = _getResetOtpFlow ? _getResetOtpFlow() : null;
+            if (resetOtpFlow) resetOtpFlow();
         });
     }
 

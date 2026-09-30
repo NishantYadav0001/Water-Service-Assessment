@@ -8,7 +8,7 @@
  */
 
 import { supabase } from './supabaseClient.js';
-import { escapeHtml } from './utils.js';
+import { escapeHtml, debounce } from './utils.js';
 
 let currentPendingUsers = [];
 
@@ -42,14 +42,14 @@ function setupTableSearch(inputId, tbody) {
     const searchInput = document.getElementById(inputId);
     if (searchInput && !searchInput.dataset.listenerAttached) {
         searchInput.dataset.listenerAttached = 'true';
-        searchInput.addEventListener('input', (e) => {
+        searchInput.addEventListener('input', debounce((e) => {
             const term = e.target.value.toLowerCase();
             const rows = tbody.querySelectorAll('tr');
             rows.forEach(row => {
                 const text = row.textContent.toLowerCase();
                 row.style.display = text.includes(term) ? '' : 'none';
             });
-        });
+        }, 250));
     }
 }
 

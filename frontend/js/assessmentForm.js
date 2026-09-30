@@ -278,12 +278,13 @@ async function loadAssessmentData(id) {
         }
     }
 
-    if (role === 'State Admin' || record.status === 'Approved' || (role === 'GP User' && record.status === 'Submitted')) {
-        setFormReadOnly(true);
-    } else if (role === 'District Admin' && record.status === 'Submitted') {
+    // Admin review: Show approve/reject for District Admin AND State Admin on Submitted forms
+    if ((role === 'District Admin' || role === 'State Admin') && record.status === 'Submitted') {
         setFormReadOnly(true);
         document.getElementById('admin-actions').classList.remove('hidden');
         document.getElementById('admin-actions').style.display = 'flex';
+    } else if (role === 'State Admin' || record.status === 'Approved' || (role === 'GP User' && record.status === 'Submitted')) {
+        setFormReadOnly(true);
     }
 
     // Lock location fields for all users when editing an existing draft to maintain data consistency
@@ -335,6 +336,10 @@ export async function openAssessmentForm(id = null) {
     document.getElementById('admin-actions').classList.add('hidden');
     document.getElementById('admin-actions').style.display = '';
     document.getElementById('rejection-alert').classList.add('hidden');
+    // Reset preview banner and consent modal
+    document.getElementById('preview-banner').classList.add('hidden');
+    document.body.classList.remove('preview-banner-active');
+    document.getElementById('consent-modal').classList.add('hidden');
     setFormReadOnly(false);
 
     // Reset action bars
@@ -672,8 +677,12 @@ export function initAssessmentForm(deps) {
             setFormReadOnly(true);
             document.getElementById('gp-actions').style.display = 'none';
             document.getElementById('preview-actions').style.display = 'flex';
+            // Show preview banner
+            document.getElementById('preview-banner').classList.remove('hidden');
+            document.body.classList.add('preview-banner-active');
+            document.getElementById('form-title-mode').textContent = '📋 Preview — Review Your Assessment';
             window.scrollTo(0, 0);
-            showToast(window.t ? window.t('preview_mode') || 'Preview Mode Activated' : 'Preview Mode Activated');
+            showToast(window.t ? window.t('preview_mode') || 'Preview Mode Activated — Review your details below' : 'Preview Mode Activated — Review your details below');
         }
     });
 
@@ -682,6 +691,12 @@ export function initAssessmentForm(deps) {
         setFormReadOnly(false);
         document.getElementById('gp-actions').style.display = 'flex';
         document.getElementById('preview-actions').style.display = 'none';
+        // Hide preview banner
+        document.getElementById('preview-banner').classList.add('hidden');
+        document.body.classList.remove('preview-banner-active');
+        // Restore form title
+        const village = document.getElementById('secA-village').value;
+        document.getElementById('form-title-mode').textContent = village ? 'Assessment for ' + village : 'Edit Assessment';
 
         // Always lock location on edit to prevent accidental reassignment
         document.getElementById('secA-state').disabled = true;
@@ -697,11 +712,79 @@ export function initAssessmentForm(deps) {
         showToast('Draft Saved Successfully from Preview!');
     });
 
-    // Final Submit (MISS-11: loading state)
+    // Final Submit — now opens consent modal instead of directly submitting
     const finalSubmitBtn = document.getElementById('final-submit-btn');
-    finalSubmitBtn.addEventListener('click', withLoading(finalSubmitBtn, async () => {
+    finalSubmitBtn.addEventListener('click', () => {
+        // Open consent modal
+        const consentModal = document.getElementById('consent-modal');
+        const consentInput = document.getElementById('consent-agree-input');
+        const consentCheckbox = document.getElementById('consent-declaration-checkbox');
+        const consentSubmitBtn = document.getElementById('consent-submit-btn');
+
+        // Reset consent modal state
+        consentInput.value = '';
+        consentInput.className = 'consent-text-input';
+        consentCheckbox.checked = false;
+        consentSubmitBtn.disabled = true;
+        document.getElementById('consent-agree-hint').className = 'consent-hint';
+        document.getElementById('consent-agree-hint').textContent = 'You must type exactly "AGREE" (case-sensitive)';
+
+        consentModal.classList.remove('hidden');
+    });
+
+    // --- Consent Modal Logic ---
+    const consentAgreeInput = document.getElementById('consent-agree-input');
+    const consentDeclCheckbox = document.getElementById('consent-declaration-checkbox');
+    const consentSubmitBtn = document.getElementById('consent-submit-btn');
+    const consentHint = document.getElementById('consent-agree-hint');
+
+    function validateConsentForm() {
+        const agreeTyped = consentAgreeInput.value.trim() === 'AGREE';
+        const checkboxChecked = consentDeclCheckbox.checked;
+
+        // Visual feedback for text input
+        if (consentAgreeInput.value.trim().length === 0) {
+            consentAgreeInput.className = 'consent-text-input';
+            consentHint.className = 'consent-hint';
+            consentHint.textContent = 'You must type exactly "AGREE" (case-sensitive)';
+        } else if (agreeTyped) {
+            consentAgreeInput.className = 'consent-text-input valid';
+            consentHint.className = 'consent-hint valid';
+            consentHint.textContent = '✓ Consent text verified';
+        } else {
+            consentAgreeInput.className = 'consent-text-input invalid';
+            consentHint.className = 'consent-hint invalid';
+            consentHint.textContent = '✗ Please type exactly "AGREE" (case-sensitive)';
+        }
+
+        // Enable/disable submit button
+        consentSubmitBtn.disabled = !(agreeTyped && checkboxChecked);
+    }
+
+    consentAgreeInput.addEventListener('input', validateConsentForm);
+    consentDeclCheckbox.addEventListener('change', validateConsentForm);
+
+    // Cancel consent → go back to preview
+    document.getElementById('consent-cancel-btn').addEventListener('click', () => {
+        document.getElementById('consent-modal').classList.add('hidden');
+    });
+
+    // Confirm & Submit from consent modal
+    consentSubmitBtn.addEventListener('click', withLoading(consentSubmitBtn, async () => {
+        // Double-check consent conditions
+        if (consentAgreeInput.value.trim() !== 'AGREE' || !consentDeclCheckbox.checked) {
+            showToast('Please complete all consent requirements before submitting.', 'error');
+            return;
+        }
+
         await saveAssessment('Submitted');
         _setIsFormDirty(false);
+
+        // Close consent modal and hide preview banner
+        document.getElementById('consent-modal').classList.add('hidden');
+        document.getElementById('preview-banner').classList.add('hidden');
+        document.body.classList.remove('preview-banner-active');
+
         _successModal.classList.remove('hidden');
     }));
 

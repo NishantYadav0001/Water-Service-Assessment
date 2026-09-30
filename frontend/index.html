@@ -14,7 +14,7 @@
 <body>
 
     <!-- Toast Notification -->
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="alert" aria-live="assertive" aria-atomic="true"></div>
 
     <!-- Auth Layout -->
     <div id="auth-layout" class="layout-container active">
@@ -40,11 +40,13 @@
                         <input type="password" id="loginPwd" required>
                     </div>
                     <button type="submit" class="btn-primary full-width mt-3" data-i18n="login">Login</button>
-                    <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
-                        <a href="#" id="show-forgot-password" style="color: var(--primary);" data-i18n="forgot_password">Forgot Password?</a>
+                    <p class="auth-link-text mt-2">
+                        <a href="#" id="show-forgot-password" style="color: var(--primary);"
+                            data-i18n="forgot_password">Forgot Password?</a>
                     </p>
-                    <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
-                        <span data-i18n="dont_have_account">Don't have an account?</span> <a href="#" id="show-register" style="color: var(--primary);" data-i18n="register_here">Register
+                    <p class="auth-link-text mt-2">
+                        <span data-i18n="dont_have_account">Don't have an account?</span> <a href="#" id="show-register"
+                            style="color: var(--primary);" data-i18n="register_here">Register
                             here</a>
                     </p>
                 </form>
@@ -101,15 +103,21 @@
                     <div class="form-group">
                         <label for="regIdProof" data-i18n="upload_id_proof">Upload ID Proof</label>
                         <input type="file" id="regIdProof" accept="image/*" required>
-                        <small class="text-muted" style="display: block; margin-top: 4px;" data-i18n="image_proof_help">Max size 1 MB</small>
+                        <small class="text-muted" style="display: block; margin-top: 4px;"
+                            data-i18n="image_proof_help">Max size 1 MB</small>
                     </div>
                     <div class="form-group">
                         <label for="regPwd" data-i18n="password">Password</label>
                         <input type="password" id="regPwd" required minlength="6">
+                        <div class="password-strength" id="password-strength">
+                            <div class="strength-bar" id="strength-bar"></div>
+                        </div>
+                        <small class="strength-text" id="strength-text"></small>
                     </div>
                     <button type="submit" class="btn-primary full-width mt-3" data-i18n="register">Register</button>
-                    <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
-                        <span data-i18n="already_have_account">Already have an account?</span> <a href="#" id="show-login" style="color: var(--primary);" data-i18n="login_here">Login
+                    <p class="auth-link-text mt-3">
+                        <span data-i18n="already_have_account">Already have an account?</span> <a href="#"
+                            id="show-login" style="color: var(--primary);" data-i18n="login_here">Login
                             here</a>
                     </p>
                 </form>
@@ -121,7 +129,8 @@
 
                 <!-- Step Indicators -->
                 <div class="step-indicator" id="otp-step-indicator">
-                    <div class="step active" id="step-dot-1"><span>1</span><small data-i18n="step_email">Email</small></div>
+                    <div class="step active" id="step-dot-1"><span>1</span><small data-i18n="step_email">Email</small>
+                    </div>
                     <div class="step-line"></div>
                     <div class="step" id="step-dot-2"><span>2</span><small data-i18n="step_verify">Verify</small></div>
                     <div class="step-line"></div>
@@ -130,55 +139,72 @@
 
                 <!-- Step 1: Enter Email -->
                 <div id="otp-step-1">
-                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="otp_email_desc">Enter your registered email address and we'll send you an 8-digit verification code.</p>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="otp_email_desc">
+                        Enter your registered email address and we'll send you an 8-digit verification code.</p>
                     <form id="forgot-password-form">
                         <div class="form-group">
                             <label for="forgotEmail" data-i18n="gmail_address">Gmail Address</label>
                             <input type="email" id="forgotEmail" required>
                         </div>
-                        <button type="submit" class="btn-primary full-width mt-3" id="send-reset-btn" data-i18n="send_otp">Send OTP</button>
+                        <button type="submit" class="btn-primary full-width mt-3" id="send-reset-btn"
+                            data-i18n="send_otp">Send OTP</button>
                     </form>
                     <p class="text-center mt-3" style="font-size: 0.875rem; text-align: center;">
-                        <a href="#" id="show-login-from-forgot" style="color: var(--primary);" data-i18n="back_to_login">← Back to Login</a>
+                        <a href="#" id="show-login-from-forgot" style="color: var(--primary);"
+                            data-i18n="back_to_login">← Back to Login</a>
                     </p>
                 </div>
 
                 <!-- Step 2: Enter OTP -->
                 <div id="otp-step-2" class="hidden">
-                    <div id="otp-sent-msg" style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #ebf8ff; border-radius: var(--radius-md); color: #2b6cb0; font-size: 0.875rem;">
+                    <div id="otp-sent-msg" class="info-banner">
                         <strong data-i18n="otp_sent">OTP Sent!</strong>
                         <span data-i18n="otp_sent_desc">Check your email for an 8-digit code.</span>
                     </div>
-                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="enter_otp_desc">Enter the 8-digit verification code sent to your email.</p>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="enter_otp_desc">
+                        Enter the 8-digit verification code sent to your email.</p>
                     <form id="verify-otp-form">
                         <div class="otp-input-group" id="otp-inputs">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="one-time-code" aria-label="Digit 1">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 2">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 3">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 4">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 5">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 6">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 7">
-                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]" aria-label="Digit 8">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                autocomplete="one-time-code" aria-label="Digit 1">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 2">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 3">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 4">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 5">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 6">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 7">
+                            <input type="text" class="otp-input" maxlength="1" inputmode="numeric" pattern="[0-9]"
+                                aria-label="Digit 8">
                         </div>
-                        <div id="otp-error" class="text-danger hidden" style="text-align: center; margin-top: 0.5rem;"></div>
-                        <button type="submit" class="btn-primary full-width mt-3" id="verify-otp-btn" data-i18n="verify_otp">Verify OTP</button>
+                        <div id="otp-error" class="text-danger hidden" style="text-align: center; margin-top: 0.5rem;">
+                        </div>
+                        <button type="submit" class="btn-primary full-width mt-3" id="verify-otp-btn"
+                            data-i18n="verify_otp">Verify OTP</button>
                     </form>
                     <p class="text-center mt-3" style="font-size: 0.875rem;">
                         <span id="resend-timer" class="resend-timer"></span>
-                        <a href="#" id="resend-otp-btn" class="hidden" style="color: var(--primary);" data-i18n="resend_otp">Resend OTP</a>
+                        <a href="#" id="resend-otp-btn" class="hidden" style="color: var(--primary);"
+                            data-i18n="resend_otp">Resend OTP</a>
                     </p>
                     <p class="text-center mt-2" style="font-size: 0.875rem; text-align: center;">
-                        <a href="#" id="back-to-step1" style="color: var(--text-muted);" data-i18n="change_email">← Change Email</a>
+                        <a href="#" id="back-to-step1" style="color: var(--text-muted);" data-i18n="change_email">←
+                            Change Email</a>
                     </p>
                 </div>
 
                 <!-- Step 3: Set New Password -->
                 <div id="otp-step-3" class="hidden">
-                    <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: #c6f6d5; border-radius: var(--radius-md); color: #22543d; font-size: 0.875rem;">
+                    <div class="success-banner">
                         <strong>✓</strong> <span data-i18n="otp_verified">OTP verified successfully!</span>
                     </div>
-                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;" data-i18n="set_new_password_desc">Choose a new password for your account.</p>
+                    <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;"
+                        data-i18n="set_new_password_desc">Choose a new password for your account.</p>
                     <form id="update-password-form">
                         <div class="form-group">
                             <label for="newPassword" data-i18n="new_password">New Password</label>
@@ -188,8 +214,10 @@
                             <label for="confirmPassword" data-i18n="confirm_password">Confirm Password</label>
                             <input type="password" id="confirmPassword" required minlength="6">
                         </div>
-                        <div id="password-match-error" class="text-danger hidden" style="margin-top: 0.5rem;" data-i18n="passwords_dont_match">Passwords do not match.</div>
-                        <button type="submit" class="btn-primary full-width mt-3" id="update-password-btn" data-i18n="update_password">Update Password</button>
+                        <div id="password-match-error" class="text-danger hidden" style="margin-top: 0.5rem;"
+                            data-i18n="passwords_dont_match">Passwords do not match.</div>
+                        <button type="submit" class="btn-primary full-width mt-3" id="update-password-btn"
+                            data-i18n="update_password">Update Password</button>
                     </form>
                 </div>
             </div>
@@ -203,7 +231,8 @@
                 <h1 data-i18n="app_title">Drinking Water Service Assessment</h1>
             </div>
             <div class="header-user">
-                <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage Users</button>
+                <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage
+                    Users</button>
                 <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
                 <span id="current-user-role" class="role-badge"></span>
                 <span id="current-user-name">User</span>
@@ -218,10 +247,12 @@
                     <h2 data-i18n="user_management_dashboard" id="user-management-title">User Management Dashboard</h2>
                 </div>
                 <div class="card mt-3">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 data-i18n="pending_users" style="margin: 0;">Pending User Registrations</h3>
                         <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
-                            <input type="text" id="pending-users-search" placeholder="Search pending users..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                            <input type="text" id="pending-users-search" placeholder="Search pending users..."
+                                style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -243,10 +274,12 @@
                 </div>
 
                 <div class="card mt-3">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 data-i18n="all_users" style="margin: 0;">All Users</h3>
                         <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
-                            <input type="text" id="all-users-search" placeholder="Search users..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                            <input type="text" id="all-users-search" placeholder="Search users..."
+                                style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -270,10 +303,12 @@
 
                 <!-- All Admins Card -->
                 <div class="card mt-3" id="all-admins-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 data-i18n="all_admins" style="margin: 0;">All Admins</h3>
                         <div class="search-box" style="margin: 0; min-width: 250px; flex: 1; max-width: 400px;">
-                            <input type="text" id="all-admins-search" placeholder="Search admins..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
+                            <input type="text" id="all-admins-search" placeholder="Search admins..."
+                                style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; width: 100%; box-sizing: border-box;">
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -340,8 +375,11 @@
                 </div>
 
                 <div class="dashboard-actions mt-3">
-                    <button class="btn-outline" id="btn-view-drafts" data-i18n="view_drafts">View Unfinished Forms</button>
-                    <button class="btn-primary" id="btn-new-form" data-i18n="start_new_form">Start New Assessment Form</button>
+                    <button class="btn-outline" id="btn-view-drafts" data-i18n="view_drafts">View Unfinished
+                        Forms</button>
+                    <button class="btn-primary" id="btn-new-form" data-i18n="start_new_form">Start New Assessment
+                        Form</button>
+                    <button class="btn-outline" id="btn-export-csv" data-i18n="export_csv">Export CSV</button>
                     <button class="btn-outline hidden" id="search-records-btn" data-i18n="search">Search</button>
                 </div>
 
@@ -362,18 +400,25 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="pagination-controls" id="pagination-controls">
+                        <button class="btn-outline btn-small" id="pagination-prev" disabled>← Prev</button>
+                        <span id="pagination-info" class="pagination-info">Page 1 of 1</span>
+                        <button class="btn-outline btn-small" id="pagination-next" disabled>Next →</button>
+                    </div>
                 </div>
             </div>
 
             <!-- Assessment Form View -->
             <div id="form-view" class="view hidden">
                 <div class="form-header">
-                    <button class="btn-outline btn-small" id="back-to-dashboard" data-i18n="back_dashboard">← Back to Dashboard</button>
+                    <button class="btn-outline btn-small" id="back-to-dashboard" data-i18n="back_dashboard">← Back to
+                        Dashboard</button>
                     <h2 id="form-title-mode" data-i18n="new_assessment">New Assessment</h2>
                 </div>
 
                 <!-- Rejection Banner (Hidden by default) -->
-                <div id="rejection-alert" class="alert hidden" style="background-color: #fed7d7; border: 1px solid #f56565; color: #c53030; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
+                <div id="rejection-alert" class="alert hidden"
+                    style="background-color: #fed7d7; border: 1px solid #f56565; color: #c53030; padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
                     <strong data-i18n="form_rejected">Form Rejected:</strong> <span id="rejection-reason-text"></span>
                 </div>
 
@@ -401,7 +446,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="form-grid cols-2 mt-3">
                             <div class="form-group">
                                 <label data-i18n="image_proof">Image Proof <span class="text-danger">*</span></label>
@@ -413,13 +458,17 @@
                                 <label data-i18n="video_proof">Video Proof <span class="text-danger">*</span></label>
                                 <input type="file" id="inst-video-proof" accept="video/*" class="file-input">
                                 <input type="hidden" id="inst-video-url" name="inst-video-url">
-                                <small class="text-muted" data-i18n="video_proof_help">Max size 5 MB, Max length 2 min</small>
+                                <small class="text-muted" data-i18n="video_proof_help">Max size 5 MB, Max length 2
+                                    min</small>
                             </div>
                         </div>
                         <div class="declaration-box mt-3">
                             <label class="checkbox-label" id="declaration-label" style="opacity: 0.5;">
                                 <input type="checkbox" id="validation-declaration" disabled required>
-                                <span data-i18n="declaration">I hereby certify that the Drinking Water Service Assessment for all the villages in the Gram panchayat has been discussed in the VWSC meeting and Gram Sabha and the information provided is true to the best of my knowledge.</span>
+                                <span data-i18n="declaration">I hereby certify that the Drinking Water Service
+                                    Assessment for all the villages in the Gram panchayat has been discussed in the VWSC
+                                    meeting and Gram Sabha and the information provided is true to the best of my
+                                    knowledge.</span>
                             </label>
                         </div>
                     </section>
@@ -462,11 +511,13 @@
 
                         <div class="form-grid cols-3 mt-3">
                             <div class="form-group">
-                                <label data-i18n="date_discussion">Date of Discussion <span class="text-danger">*</span></label>
+                                <label data-i18n="date_discussion">Date of Discussion <span
+                                        class="text-danger">*</span></label>
                                 <input type="date" id="secA-date" required>
                             </div>
                             <div class="form-group">
-                                <label data-i18n="reporting_year">Reporting Year <span class="text-danger">*</span></label>
+                                <label data-i18n="reporting_year">Reporting Year <span
+                                        class="text-danger">*</span></label>
                                 <select id="secA-year" required>
                                     <option value="2024-25">2024-25</option>
                                     <option value="2025-26" selected>2025-26</option>
@@ -504,16 +555,24 @@
                         <div class="form-group mt-3">
                             <label data-i18n="members_present">Members Present</label>
                             <div class="checkbox-grid">
-                                <label><input type="checkbox" name="membersPresent" value="Sarpanch"> <span data-i18n="sarpanch">Sarpanch</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Sarpanch"> <span
+                                        data-i18n="sarpanch">Sarpanch</span></label>
                                 <label><input type="checkbox" name="membersPresent" value="Panchayat Secretary">
                                     <span data-i18n="panchayat_sec">Panchayat Secretary</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="VWSC Chairperson"> <span data-i18n="vwsc_chair">VWSC Chair</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="Pump Operator"> <span data-i18n="pump_operator">Pump Operator</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="ASHA"> <span data-i18n="asha">ASHA Worker</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="Anganwadi Worker"> <span data-i18n="anganwadi">Anganwadi Worker</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="FTK Woman"> <span data-i18n="ftk_woman">FTK Woman</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="SC/ST rep"> <span data-i18n="sc_st">SC/ST rep</span></label>
-                                <label><input type="checkbox" name="membersPresent" value="Other"> <span data-i18n="other">Other</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="VWSC Chairperson"> <span
+                                        data-i18n="vwsc_chair">VWSC Chair</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Pump Operator"> <span
+                                        data-i18n="pump_operator">Pump Operator</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="ASHA"> <span
+                                        data-i18n="asha">ASHA Worker</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Anganwadi Worker"> <span
+                                        data-i18n="anganwadi">Anganwadi Worker</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="FTK Woman"> <span
+                                        data-i18n="ftk_woman">FTK Woman</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="SC/ST rep"> <span
+                                        data-i18n="sc_st">SC/ST rep</span></label>
+                                <label><input type="checkbox" name="membersPresent" value="Other"> <span
+                                        data-i18n="other">Other</span></label>
                             </div>
                         </div>
                     </section>
@@ -556,7 +615,8 @@
                             <div class="form-group">
                                 <label data-i18n="charge_amount">Service charge amount (Max 3 digits)</label>
                                 <input type="number" id="secB-chargeAmount" max="999" required>
-                                <span class="text-warning hidden" id="charge-warning" data-i18n="warning_high">Warning: Value is high (> 150)</span>
+                                <span class="text-warning hidden" id="charge-warning" data-i18n="warning_high">Warning:
+                                    Value is high (> 150)</span>
                             </div>
                         </div>
 
@@ -575,10 +635,14 @@
                         <div class="form-group mt-3">
                             <label data-i18n="water_source">Source of water supply</label>
                             <div class="checkbox-grid">
-                                <label><input type="checkbox" name="waterSource" value="Bulk Water Transfer"> <span data-i18n="bulk_water">Bulk Water Transfer</span></label>
-                                <label><input type="checkbox" name="waterSource" value="Surface Water"> <span data-i18n="surface_water">Surface Water</span></label>
-                                <label><input type="checkbox" name="waterSource" value="Ground Water"> <span data-i18n="ground_water">Ground Water</span></label>
-                                <label><input type="checkbox" name="waterSource" value="Spring"> <span data-i18n="spring">Spring</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Bulk Water Transfer"> <span
+                                        data-i18n="bulk_water">Bulk Water Transfer</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Surface Water"> <span
+                                        data-i18n="surface_water">Surface Water</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Ground Water"> <span
+                                        data-i18n="ground_water">Ground Water</span></label>
+                                <label><input type="checkbox" name="waterSource" value="Spring"> <span
+                                        data-i18n="spring">Spring</span></label>
                             </div>
                         </div>
                     </section>
@@ -606,14 +670,17 @@
                                 <tbody>
                                     <tr>
                                         <td>
-                                            <select name="disrupt_reason" class="table-input"
-                                                style="padding: 0.375rem;" required>
+                                            <select name="disrupt_reason" class="table-input" style="padding: 0.375rem;"
+                                                required>
                                                 <option value="" data-i18n="select_reason">Select Reason</option>
                                                 <option value="Power cut" data-i18n="power_cut">Power cut</option>
                                                 <option value="Low voltage" data-i18n="low_voltage">Low voltage</option>
-                                                <option value="Pipeline breakage" data-i18n="pipe_breakage">Pipeline breakage</option>
-                                                <option value="Pump failure" data-i18n="pump_failure">Pump failure</option>
-                                                <option value="Contamination" data-i18n="contamination">Contamination</option>
+                                                <option value="Pipeline breakage" data-i18n="pipe_breakage">Pipeline
+                                                    breakage</option>
+                                                <option value="Pump failure" data-i18n="pump_failure">Pump failure
+                                                </option>
+                                                <option value="Contamination" data-i18n="contamination">Contamination
+                                                </option>
                                                 <option value="Other" data-i18n="other">Other</option>
                                             </select>
                                         </td>
@@ -630,7 +697,8 @@
                                 <thead>
                                     <tr>
                                         <th data-i18n="habitation_name">Habitation Name</th>
-                                        <th data-i18n="hhs_inadequate">No. of HHs not receiving adequate water (≥ 55 LPCD)</th>
+                                        <th data-i18n="hhs_inadequate">No. of HHs not receiving adequate water (≥ 55
+                                            LPCD)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -667,9 +735,12 @@
                             <div class="form-group">
                                 <label data-i18n="leak_methods">Leak detection methods</label>
                                 <div class="checkbox-grid">
-                                    <label><input type="checkbox" name="leakDetect" value="Transact walk"> <span data-i18n="transact_walk">Transact walk</span></label>
-                                    <label><input type="checkbox" name="leakDetect" value="Visual detection"> <span data-i18n="visual_detection">Visual detection</span></label>
-                                    <label><input type="checkbox" name="leakDetect" value="Community Surveillance"> <span data-i18n="community_surv">Community Surveillance</span></label>
+                                    <label><input type="checkbox" name="leakDetect" value="Transact walk"> <span
+                                            data-i18n="transact_walk">Transact walk</span></label>
+                                    <label><input type="checkbox" name="leakDetect" value="Visual detection"> <span
+                                            data-i18n="visual_detection">Visual detection</span></label>
+                                    <label><input type="checkbox" name="leakDetect" value="Community Surveillance">
+                                        <span data-i18n="community_surv">Community Surveillance</span></label>
                                 </div>
                             </div>
                             <div class="form-group">
@@ -717,18 +788,25 @@
                         </div>
                         <div class="form-group mt-2">
                             <label data-i18n="cert_details">Certification details</label>
-                            <input type="text" id="secE-certifications" data-i18n-placeholder="ph_cert" placeholder="e.g. Skill India" required>
+                            <input type="text" id="secE-certifications" data-i18n-placeholder="ph_cert"
+                                placeholder="e.g. Skill India" required>
                         </div>
 
                         <div class="form-group mt-3">
                             <label data-i18n="gp_issues">Checklist of GP Issues</label>
                             <div class="checkbox-grid">
-                                <label><input type="checkbox" name="gpIssues" value="Quality of water"> <span data-i18n="quality_water">Quality of water</span></label>
-                                <label><input type="checkbox" name="gpIssues" value="No operator"> <span data-i18n="no_operator_issue">No operator</span></label>
-                                <label><input type="checkbox" name="gpIssues" value="FTK not procured"> <span data-i18n="ftk_not_procured">FTK not procured</span></label>
-                                <label><input type="checkbox" name="gpIssues" value="Bleaching powder not procured"> <span data-i18n="bleach_not_procured">Bleaching powder not procured</span></label>
-                                <label><input type="checkbox" name="gpIssues" value="Leakages"> <span data-i18n="leakages">Leakages</span></label>
-                                <label><input type="checkbox" name="gpIssues" value="Grey water management"> <span data-i18n="grey_water">Grey water management</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Quality of water"> <span
+                                        data-i18n="quality_water">Quality of water</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="No operator"> <span
+                                        data-i18n="no_operator_issue">No operator</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="FTK not procured"> <span
+                                        data-i18n="ftk_not_procured">FTK not procured</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Bleaching powder not procured">
+                                    <span data-i18n="bleach_not_procured">Bleaching powder not procured</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Leakages"> <span
+                                        data-i18n="leakages">Leakages</span></label>
+                                <label><input type="checkbox" name="gpIssues" value="Grey water management"> <span
+                                        data-i18n="grey_water">Grey water management</span></label>
                             </div>
                         </div>
                     </section>
@@ -736,20 +814,28 @@
                     <!-- Sticky Footer Actions -->
                     <div class="form-actions mt-3" id="form-actions-bar">
                         <div id="gp-actions" style="display: flex; gap: 1rem;">
-                            <button type="button" class="btn-outline" id="save-draft-btn" data-i18n="save_draft">Save Draft</button>
-                            <button type="button" class="btn-outline" id="save-exit-btn" data-i18n="save_exit">Save and Exit</button>
-                            <button type="submit" class="btn-primary" id="submit-assessment-btn" data-i18n="submit_assessment">Submit Assessment</button>
+                            <button type="button" class="btn-outline" id="save-draft-btn" data-i18n="save_draft">Save
+                                Draft</button>
+                            <button type="button" class="btn-outline" id="save-exit-btn" data-i18n="save_exit">Save and
+                                Exit</button>
+                            <button type="submit" class="btn-primary" id="submit-assessment-btn"
+                                data-i18n="Preview assessment">Preview Assessment</button>
                         </div>
 
                         <div id="preview-actions" class="hidden" style="display: none; gap: 1rem;">
-                            <button type="button" class="btn-outline" id="preview-save-draft-btn" data-i18n="save_draft">Save Draft</button>
-                            <button type="button" class="btn-outline" id="edit-form-btn" data-i18n="edit_form">Edit Form</button>
-                            <button type="button" class="btn-primary bg-success" id="final-submit-btn" data-i18n="final_submit">Final Submit</button>
+                            <button type="button" class="btn-outline" id="preview-save-draft-btn"
+                                data-i18n="save_draft">Save Draft</button>
+                            <button type="button" class="btn-outline" id="edit-form-btn" data-i18n="edit_form">Edit
+                                Form</button>
+                            <button type="button" class="btn-primary bg-success" id="final-submit-btn"
+                                data-i18n="final_submit">Final Submit</button>
                         </div>
-                        
+
                         <div id="admin-actions" class="hidden">
-                            <button type="button" class="btn-outline text-danger" id="reject-assessment-btn" data-i18n="reject">Reject</button>
-                            <button type="button" class="btn-primary" id="approve-assessment-btn" data-i18n="approve">Approve</button>
+                            <button type="button" class="btn-outline text-danger" id="reject-assessment-btn"
+                                data-i18n="reject">Reject</button>
+                            <button type="button" class="btn-primary" id="approve-assessment-btn"
+                                data-i18n="approve">Approve</button>
                         </div>
                     </div>
                 </form>
@@ -757,32 +843,112 @@
         </main>
     </div>
 
+    <!-- Preview Mode Banner (hidden by default) -->
+    <div id="preview-banner" class="preview-banner hidden">
+        <div class="preview-banner-content">
+            <span class="preview-banner-icon">👁️</span>
+            <div class="preview-banner-text">
+                <strong data-i18n="preview_mode_title">Preview Mode — Review Your Assessment</strong>
+                <p data-i18n="preview_mode_desc">All fields are read-only. Review your details carefully before final
+                    submission.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consent Modal (appears before final submission) -->
+    <div id="consent-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="consent-modal-title">
+        <div class="modal-content consent-modal-content">
+            <div class="consent-header">
+                <span class="consent-icon">📜</span>
+                <h2 id="consent-modal-title" data-i18n="final_consent_title">Final Consent Required</h2>
+            </div>
+            <div class="consent-body">
+                <p class="consent-description" data-i18n="consent_desc">
+                    By submitting this assessment, you confirm that all the information provided is accurate and
+                    complete
+                    to the best of your knowledge. This assessment will be sent to the District Admin for approval.
+                    Once submitted, you will not be able to edit this form.
+                </p>
+
+                <div class="consent-input-group">
+                    <label for="consent-agree-input" class="consent-label" data-i18n="consent_type_agree">
+                        Type <strong>"AGREE"</strong> below to confirm your consent:
+                    </label>
+                    <input type="text" id="consent-agree-input" class="consent-text-input" placeholder="Type AGREE here"
+                        autocomplete="off" spellcheck="false">
+                    <small id="consent-agree-hint" class="consent-hint" data-i18n="consent_hint">
+                        You must type exactly "AGREE" (case-sensitive)
+                    </small>
+                </div>
+
+                <div class="consent-checkbox-group">
+                    <label class="checkbox-label consent-checkbox-label">
+                        <input type="checkbox" id="consent-declaration-checkbox">
+                        <span data-i18n="consent_checkbox_text">
+                            I hereby declare that all the information furnished in this assessment form is true,
+                            correct, and complete. I understand that submitting false information may lead to
+                            rejection of this assessment and further action.
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="consent-actions">
+                <button type="button" class="btn-outline" id="consent-cancel-btn" data-i18n="go_back">
+                    ← Go Back to Preview
+                </button>
+                <button type="button" class="btn-primary bg-success" id="consent-submit-btn" disabled
+                    data-i18n="confirm_submit">
+                    ✓ Confirm & Submit
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Success Modal -->
-    <div id="success-modal" class="modal hidden">
+    <div id="success-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="success-modal-title">
         <div class="modal-content text-center">
             <div class="success-icon mb-3">✓</div>
-            <h2 class="mb-3" data-i18n="success">Success!</h2>
-            <p class="mb-3 text-muted" data-i18n="success_msg">Assessment record has been finalized and submitted successfully.</p>
+            <h2 class="mb-3" id="success-modal-title" data-i18n="success">Success!</h2>
+            <p class="mb-3 text-muted" data-i18n="success_msg">Assessment record has been finalized and submitted
+                successfully. It has been sent for approval to the District Admin.</p>
             <button class="btn-primary" id="close-modal-btn" data-i18n="return_dashboard">Return to Dashboard</button>
         </div>
     </div>
 
     <!-- User Details Modal -->
-    <div id="id-proof-modal" class="modal hidden">
+    <div id="id-proof-modal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="id-proof-modal-title">
         <div class="modal-content" style="max-width: 600px; text-align: left;">
-            <h3 data-i18n="user_details">User Details</h3>
+            <h3 id="id-proof-modal-title" data-i18n="user_details">User Details</h3>
             <div id="modal-user-details" style="margin-top: 1rem; line-height: 1.5; font-size: 0.95rem;">
                 <p><strong>Email:</strong> <span id="modal-email"></span></p>
                 <p><strong>Role:</strong> <span id="modal-role"></span></p>
                 <p><strong>Location:</strong> <span id="modal-location"></span></p>
             </div>
             <h4 style="margin-top: 1.5rem;" data-i18n="upload_id_proof">ID Proof</h4>
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; text-align: center;">
-                <img id="id-proof-image" src="" alt="ID Proof" style="max-width: 100%; max-height: 40vh; object-fit: contain;">
+            <div
+                style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; text-align: center;">
+                <img id="id-proof-image" src="" alt="ID Proof"
+                    style="max-width: 100%; max-height: 40vh; object-fit: contain;">
                 <p id="no-id-text" class="hidden text-muted" style="margin:0;">No ID Proof Uploaded</p>
             </div>
             <div style="margin-top: 1.5rem; text-align: center;">
                 <button type="button" class="btn-primary" id="close-id-modal-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal (replaces native alert/confirm) -->
+    <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="modal-content">
+            <h3 id="confirm-modal-title">Confirm</h3>
+            <div class="confirm-modal-body">
+                <p id="confirm-modal-message"></p>
+            </div>
+            <div class="confirm-modal-actions">
+                <button class="btn-outline" id="confirm-modal-cancel">Cancel</button>
+                <button class="btn-primary" id="confirm-modal-ok">OK</button>
             </div>
         </div>
     </div>

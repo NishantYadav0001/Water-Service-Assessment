@@ -6,12 +6,13 @@
  * and kicks off initialization.
  */
 
-import { getCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth } from './js/auth.js';
+import { getCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth, getResetOtpFlow } from './js/auth.js';
 import { loadLocations } from './js/locations.js';
 import { switchAppView, showApp, showAuth, initNavigation } from './js/navigation.js';
 import { renderDashboard, initDashboard, setShowDraftsOnly, resetFilterLock } from './js/dashboard.js';
 import { openAssessmentForm, initAssessmentForm } from './js/assessmentForm.js';
 import { renderSuperAdminDashboard, initSuperAdmin } from './js/superAdmin.js';
+import './js/modal.js'; // Initialize confirm/alert modal system
 
 document.addEventListener('DOMContentLoaded', async () => {
     const successModal = document.getElementById('success-modal');
@@ -30,7 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderSuperAdminDashboard,
         logout,
         setShowDraftsOnly,
-        successModal
+        successModal,
+        getResetOtpFlow,
+        loadLocations
     });
 
     initDashboard({
@@ -59,5 +62,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- Load data ---
-    loadLocations();
+    // Location data is now loaded lazily after login (inside showApp/navigation.js)
+    // This avoids downloading 15MB on unauthenticated page loads
 });

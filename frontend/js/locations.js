@@ -21,23 +21,52 @@ export function isLocationDataReady() {
 
 export async function loadLocations() {
     try {
+        // Performance: Check sessionStorage cache first to avoid re-downloading 15MB
+        const cached = sessionStorage.getItem('locationData');
+        if (cached) {
+            try {
+                locationData = JSON.parse(cached);
+                isLocationDataLoaded = true;
+                initCascadingDropdowns();
+                showLocationFields();
+                return;
+            } catch (e) {
+                sessionStorage.removeItem('locationData');
+            }
+        }
+
         const response = await fetch('all_india_locations.json');
         locationData = await response.json();
         isLocationDataLoaded = true;
+
+        // Cache in sessionStorage for page refreshes
+        try {
+            sessionStorage.setItem('locationData', JSON.stringify(locationData));
+        } catch (e) {
+            // sessionStorage might be full for very large datasets — silently ignore
+            console.warn('Could not cache location data in sessionStorage:', e.message);
+        }
+
         initCascadingDropdowns();
-
-        // Hide loaders and show fields
-        document.getElementById('dashboard-location-loader').classList.add('hidden');
-        document.getElementById('dashboard-location-fields').classList.remove('hidden');
-
-        document.getElementById('form-location-loader').classList.add('hidden');
-        document.getElementById('form-location-fields').classList.remove('hidden');
+        showLocationFields();
 
     } catch (error) {
         console.error('Failed to load locations dataset:', error);
         document.getElementById('dashboard-location-loader').innerHTML = `<span class="text-danger">Failed to load geographic dataset. Please ensure all_india_locations.json is present.</span>`;
         document.getElementById('form-location-loader').innerHTML = `<span class="text-danger">Failed to load geographic dataset.</span>`;
     }
+}
+
+function showLocationFields() {
+    const dashLoader = document.getElementById('dashboard-location-loader');
+    const dashFields = document.getElementById('dashboard-location-fields');
+    const formLoader = document.getElementById('form-location-loader');
+    const formFields = document.getElementById('form-location-fields');
+
+    if (dashLoader) dashLoader.classList.add('hidden');
+    if (dashFields) dashFields.classList.remove('hidden');
+    if (formLoader) formLoader.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
 }
 
 export function populateSelect(selectEl, options, defaultText) {

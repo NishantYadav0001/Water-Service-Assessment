@@ -17,6 +17,7 @@ let currentUser = null;
 let isRegistering = false;
 let isFormDirty = false;
 let isRecoveringPassword = false;
+let _resetOtpFlow = null;
 
 // Injected dependencies
 let _showApp = null;
@@ -45,6 +46,10 @@ export async function logout() {
     if (_setShowDraftsOnly) _setShowDraftsOnly(false);
     if (_resetFilterLock) _resetFilterLock();
     // showAuth is called by onAuthStateChange
+}
+
+export function getResetOtpFlow() {
+    return _resetOtpFlow;
 }
 
 async function loadCurrentUserProfile(email) {
@@ -406,8 +411,9 @@ export function initAuth(deps) {
         });
     }
 
-    // Expose resetOtpFlow for navigation module
-    window._resetOtpFlow = resetOtpFlow;
+    // Export resetOtpFlow for use by navigation module via dependency injection
+    // (previously exposed as window._resetOtpFlow)
+    _resetOtpFlow = resetOtpFlow;
 
     // Registration role-change handler (show/hide location fields)
     document.getElementById('reg-role').addEventListener('change', (e) => {
@@ -450,6 +456,34 @@ export function initAuth(deps) {
             document.getElementById('reg-village').required = false;
         }
     });
+
+    // Password Strength Indicator
+    const regPwdInput = document.getElementById('regPwd');
+    const strengthBar = document.getElementById('strength-bar');
+    const strengthText = document.getElementById('strength-text');
+
+    function getPasswordStrength(pwd) {
+        if (!pwd) return { level: '', label: '' };
+        let score = 0;
+        if (pwd.length >= 6) score++;
+        if (pwd.length >= 10) score++;
+        if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+        if (/\d/.test(pwd)) score++;
+        if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+
+        if (score <= 2) return { level: 'weak', label: 'Weak' };
+        if (score <= 3) return { level: 'medium', label: 'Medium' };
+        return { level: 'strong', label: 'Strong' };
+    }
+
+    if (regPwdInput && strengthBar && strengthText) {
+        regPwdInput.addEventListener('input', () => {
+            const { level, label } = getPasswordStrength(regPwdInput.value);
+            strengthBar.className = 'strength-bar' + (level ? ' ' + level : '');
+            strengthText.className = 'strength-text' + (level ? ' ' + level : '');
+            strengthText.textContent = label;
+        });
+    }
 
     // Registration form
     document.getElementById('register-form').addEventListener('submit', async (e) => {

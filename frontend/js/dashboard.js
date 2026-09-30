@@ -1,5 +1,6 @@
 /**
- * Dashboard — record listing, filtering, draft toggle, and record actions.
+ * Dashboard — record listing, filtering, draft toggle, pagination,
+ * CSV export, and record actions.
  *
  * Exports:
  *   renderDashboard()      — fetch + render the assessment records table
@@ -9,10 +10,15 @@
  */
 
 import { supabase } from './supabaseClient.js';
-import { escapeHtml, safeT, showToast } from './utils.js';
+import { escapeHtml, safeT, showToast, handleSupabaseError } from './utils.js';
 
 let showDraftsOnly = false;
 let filterLockedForRole = false;
+
+// Pagination state
+let currentPage = 1;
+const PAGE_SIZE = 15;
+let allFilteredRecords = []; // Stores the full filtered dataset for CSV export + pagination
 
 // Injected dependencies
 let _getCurrentUser = null;
@@ -29,6 +35,67 @@ export function setShowDraftsOnly(val) {
 
 export function resetFilterLock() {
     filterLockedForRole = false;
+}
+
+/**
+ * Export currently filtered records as a CSV download.
+ */
+function exportRecordsToCSV() {
+    if (allFilteredRecords.length === 0) {
+        showToast(safeT('no_records', 'No records to export'), 'error');
+        return;
+    }
+
+    const headers = ['Date', 'Village', 'Sub-District', 'District', 'State', 'Status'];
+    const rows = allFilteredRecords.map(record => {
+        let displayDate = '';
+        if (record.payload && record.payload.date_discussion) {
+            displayDate = record.payload.date_discussion;
+        } else if (record.createdAt) {
+            displayDate = new Date(record.createdAt).toLocaleDateString();
+        }
+        return [
+            displayDate,
+            record.village || '',
+            record.sub_district || '',
+            record.district || '',
+            record.state || '',
+            record.status
+        ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `assessment_records_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(safeT('export_success', 'CSV exported successfully!'));
+}
+
+/**
+ * Render pagination controls based on current state.
+ */
+function renderPagination(totalRecords) {
+    const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+    const prevBtn = document.getElementById('pagination-prev');
+    const nextBtn = document.getElementById('pagination-next');
+    const info = document.getElementById('pagination-info');
+    const controls = document.getElementById('pagination-controls');
+
+    if (!controls) return;
+
+    if (totalRecords <= PAGE_SIZE) {
+        controls.style.display = 'none';
+        return;
+    }
+
+    controls.style.display = 'flex';
+    info.textContent = `Page ${currentPage} of ${totalPages}`;
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
 }
 
 export async function renderDashboard() {
@@ -102,12 +169,13 @@ export async function renderDashboard() {
     const { data: dbRecords, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
-        console.warn("Error fetching assessments (table may not exist yet):", error.message);
+        handleSupabaseError(error, 'fetching assessments');
         tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
+        renderPagination(0);
         return;
     }
 
-    let filtered = dbRecords.map(a => ({
+    allFilteredRecords = dbRecords.map(a => ({
         id: a.id,
         status: a.status,
         payload: a.payload,
@@ -119,13 +187,20 @@ export async function renderDashboard() {
         user_id: a.user_id
     }));
 
-    if (filtered.length === 0) {
+    if (allFilteredRecords.length === 0) {
         // BUG-02: use safeT instead of raw window.t()
         tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
+        renderPagination(0);
         return;
     }
 
-    filtered.forEach(record => {
+    // Pagination: slice records for current page
+    const totalPages = Math.ceil(allFilteredRecords.length / PAGE_SIZE);
+    if (currentPage > totalPages) currentPage = totalPages;
+    const startIdx = (currentPage - 1) * PAGE_SIZE;
+    const pageRecords = allFilteredRecords.slice(startIdx, startIdx + PAGE_SIZE);
+
+    pageRecords.forEach(record => {
         const tr = document.createElement('tr');
 
         // BUG-02 + BUG-13: Safe translation + correct badge CSS classes
@@ -177,6 +252,9 @@ export async function renderDashboard() {
         tbody.appendChild(tr);
     });
 
+    // Render pagination controls
+    renderPagination(allFilteredRecords.length);
+
     document.querySelectorAll('.view-record').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.target.getAttribute('data-id');
@@ -189,7 +267,7 @@ export async function renderDashboard() {
             const currentUser = _getCurrentUser();
             // BUG-C6: Only GP Users can delete, and only Draft assessments
             if (!currentUser || currentUser.role !== 'GP User') {
-                alert('Only GP Users can delete draft assessments.');
+                showToast('Only GP Users can delete draft assessments.', 'error');
                 return;
             }
             // BUG-02 + BUG-05: Safe translations + database delete
@@ -199,20 +277,20 @@ export async function renderDashboard() {
                 const { data: record, error: fetchErr } = await supabase
                     .from('assessments').select('status, user_id').eq('id', id).single();
                 if (fetchErr || !record) {
-                    alert('Failed to verify draft: ' + (fetchErr?.message || 'Not found'));
+                    handleSupabaseError(fetchErr, 'verifying draft');
                     return;
                 }
                 if (record.status !== 'Draft') {
-                    alert('Only draft assessments can be deleted.');
+                    showToast('Only draft assessments can be deleted.', 'error');
                     return;
                 }
                 if (record.user_id !== currentUser.email) {
-                    alert('You can only delete your own drafts.');
+                    showToast('You can only delete your own drafts.', 'error');
                     return;
                 }
                 const { error } = await supabase.from('assessments').delete().eq('id', id);
                 if (error) {
-                    alert('Failed to delete draft: ' + error.message);
+                    handleSupabaseError(error, 'deleting draft');
                     return;
                 }
                 showToast(safeT('draft_deleted', 'Draft Deleted!'));
@@ -243,11 +321,11 @@ export function initDashboard(deps) {
             // BUG-09: user-scoped draft count, now querying Supabase
             const { data: drafts, error } = await supabase.from('assessments').select('id').eq('user_id', currentUser.email).eq('status', 'Draft');
             if (error) {
-                console.warn("Draft count check returned error (table may not exist yet):", error.message);
+                handleSupabaseError(error, 'checking draft count');
             }
             const draftCount = (drafts && !error) ? drafts.length : 0;
             if (draftCount >= 2) {
-                alert('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.');
+                showToast('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.', 'error');
                 return;
             }
             _openAssessmentForm(null);
@@ -259,6 +337,7 @@ export function initDashboard(deps) {
     if (viewDraftsBtn) {
         viewDraftsBtn.addEventListener('click', (e) => {
             showDraftsOnly = !showDraftsOnly;
+            currentPage = 1; // Reset pagination on filter change
             if (showDraftsOnly) {
                 // MIN-1: Use safeT instead of raw window.t
                 e.target.textContent = safeT('all', 'All') + ' ' + safeT('assessment_records', 'Records');
@@ -273,15 +352,47 @@ export function initDashboard(deps) {
         });
     }
 
+    // Export CSV button
+    const btnExportCsv = document.getElementById('btn-export-csv');
+    if (btnExportCsv) {
+        btnExportCsv.addEventListener('click', exportRecordsToCSV);
+    }
+
+    // Pagination buttons
+    const paginationPrev = document.getElementById('pagination-prev');
+    const paginationNext = document.getElementById('pagination-next');
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderDashboard();
+            }
+        });
+    }
+    if (paginationNext) {
+        paginationNext.addEventListener('click', () => {
+            const totalPages = Math.ceil(allFilteredRecords.length / PAGE_SIZE);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderDashboard();
+            }
+        });
+    }
+
     // Search button
     const searchRecordsBtn = document.getElementById('search-records-btn');
-    if (searchRecordsBtn) searchRecordsBtn.addEventListener('click', renderDashboard);
+    if (searchRecordsBtn) searchRecordsBtn.addEventListener('click', () => {
+        currentPage = 1;
+        renderDashboard();
+    });
 
     // BUG-S6: Auto-refresh dashboard when filter dropdowns change
     ['filter-state', 'filter-district', 'filter-subdistrict', 'filter-village'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
+                currentPage = 1; // Reset page on filter change
                 // Only refresh if we're on the dashboard and have a logged-in user
                 const dashView = document.getElementById('dashboard-view');
                 if (dashView && !dashView.classList.contains('hidden') && _getCurrentUser()) {
