@@ -251,7 +251,9 @@ async function loadAssessmentData(id) {
     }
 
     // Naive population mapping for prototype
+    const excludeKeys = ['secA-state', 'secA-district', 'secA-subdistrict', 'secA-village', 'state', 'district', 'subdistrict', 'village'];
     Object.keys(record.payload).forEach(key => {
+        if (excludeKeys.includes(key)) return;
         const val = record.payload[key];
         if (val === undefined || val === null) return;
 
@@ -322,6 +324,23 @@ async function loadAssessmentData(id) {
             // GP User cannot edit submitted or approved forms
             setFormReadOnly(true);
             document.getElementById('gp-actions').classList.add('hidden');
+        } else if (status === 'draft') {
+            if (session.account_status === 'restricted') {
+                // Restricted GP User cannot edit draft forms either
+                setFormReadOnly(true);
+                document.getElementById('gp-actions').classList.add('hidden');
+            }
+        }
+    } else if (role.toLowerCase() === 'district admin' || role.toLowerCase() === 'state admin') {
+        const adminActions = document.getElementById('admin-actions');
+        if (adminActions) {
+            if (status === 'submitted') {
+                adminActions.classList.remove('hidden');
+                adminActions.style.display = 'flex';
+            } else {
+                adminActions.classList.add('hidden');
+                adminActions.style.display = 'none';
+            }
         }
     }
     // Admin lock is handled by MEGA-LOCK in openAssessmentForm's finally block
@@ -350,6 +369,7 @@ async function loadAssessmentData(id) {
 
 export async function openAssessmentForm(id = null) {
     _setIsFormDirty(false);
+    sessionStorage.setItem('currentAssessmentId', id || 'new');
     _switchAppView('assessment');
     document.getElementById('assessment-form').reset();
 
@@ -440,15 +460,12 @@ export async function openAssessmentForm(id = null) {
             }
 
             // Show admin Approve/Reject buttons ONLY for existing records with 'submitted' status
+            // This is now correctly handled inside loadAssessmentData after fetching the status.
             const adminActions = document.getElementById('admin-actions');
-            if (adminActions) {
-                // Check if this is a submitted form that needs review
-                const recordId = document.getElementById('recordId').value;
-                const isExistingRecord = id && recordId && !recordId.startsWith('REC-');
-                if (isExistingRecord || id) {
-                    adminActions.classList.remove('hidden');
-                    adminActions.style.display = 'flex';
-                }
+            if (adminActions && !id) {
+                 // For new forms (should never happen for admins, but just in case)
+                 adminActions.classList.add('hidden');
+                 adminActions.style.display = 'none';
             }
 
             // Disable all location fields for admin

@@ -34,6 +34,7 @@ let _setShowDraftsOnly = null;
 let _successModal = null;
 let _getResetOtpFlow = null;
 let _loadLocations = null;
+let _openAssessmentForm = null;
 let _locationsLoaded = false;
 
 export function switchAppView(view) {
@@ -44,6 +45,12 @@ export function switchAppView(view) {
     if (superadminView) {
         superadminView.classList.add('hidden');
         superadminView.classList.remove('active');
+    }
+
+    // Persist current view
+    sessionStorage.setItem('currentAppView', view);
+    if (view !== 'assessment') {
+        sessionStorage.removeItem('currentAssessmentId');
     }
 
     if (view === 'dashboard') {
@@ -127,18 +134,51 @@ export function showApp() {
         }
     }
 
+    // Restore last visited view or default
+    const savedView = sessionStorage.getItem('currentAppView');
+    const savedAssessmentId = sessionStorage.getItem('currentAssessmentId');
+
     // BUG-C4: Normalized Super Admin check
     if (isSuperAdmin(currentUser.role)) {
-        switchAppView('superadmin');
-        if (navToggleBtn) {
-            navToggleBtn.setAttribute('data-i18n', 'dashboard');
-            navToggleBtn.textContent = window.t ? window.t('dashboard') : 'Dashboard';
+        if (savedView === 'superadmin' || !savedView) {
+            switchAppView('superadmin');
+            if (navToggleBtn) {
+                navToggleBtn.setAttribute('data-i18n', 'dashboard');
+                navToggleBtn.textContent = window.t ? window.t('dashboard') : 'Dashboard';
+            }
+        } else if (savedView === 'assessment' && _openAssessmentForm && savedAssessmentId) {
+            _openAssessmentForm(savedAssessmentId === 'new' ? null : savedAssessmentId);
+            if (navToggleBtn) {
+                navToggleBtn.setAttribute('data-i18n', 'dashboard');
+                navToggleBtn.textContent = window.t ? window.t('dashboard') : 'Dashboard';
+            }
+        } else {
+            switchAppView('dashboard');
+            if (navToggleBtn) {
+                navToggleBtn.setAttribute('data-i18n', 'manage_users');
+                navToggleBtn.textContent = window.t ? window.t('manage_users') : 'Manage Users';
+            }
         }
     } else {
-        switchAppView('dashboard');
-        if (navToggleBtn) {
-            navToggleBtn.setAttribute('data-i18n', 'manage_users');
-            navToggleBtn.textContent = window.t ? window.t('manage_users') : 'Manage Users';
+        // Non-SuperAdmins
+        if (savedView === 'assessment' && _openAssessmentForm && savedAssessmentId) {
+            _openAssessmentForm(savedAssessmentId === 'new' ? null : savedAssessmentId);
+            if (navToggleBtn && ['State Admin', 'District Admin'].includes(currentUser.role)) {
+                navToggleBtn.setAttribute('data-i18n', 'manage_users');
+                navToggleBtn.textContent = window.t ? window.t('manage_users') : 'Manage Users';
+            }
+        } else if (savedView === 'superadmin' && ['State Admin', 'District Admin'].includes(currentUser.role)) {
+            switchAppView('superadmin');
+            if (navToggleBtn) {
+                navToggleBtn.setAttribute('data-i18n', 'dashboard');
+                navToggleBtn.textContent = window.t ? window.t('dashboard') : 'Dashboard';
+            }
+        } else {
+            switchAppView('dashboard');
+            if (navToggleBtn) {
+                navToggleBtn.setAttribute('data-i18n', 'manage_users');
+                navToggleBtn.textContent = window.t ? window.t('manage_users') : 'Manage Users';
+            }
         }
     }
 }
@@ -186,6 +226,7 @@ export function initNavigation(deps) {
     _successModal = deps.successModal;
     _getResetOtpFlow = deps.getResetOtpFlow;
     _loadLocations = deps.loadLocations;
+    _openAssessmentForm = deps.openAssessmentForm;
 
     // Back to dashboard
     document.getElementById('back-to-dashboard').addEventListener('click', () => {

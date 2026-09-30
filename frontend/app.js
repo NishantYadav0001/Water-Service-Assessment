@@ -6,13 +6,13 @@
  * and kicks off initialization.
  */
 
-import { getCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth, getResetOtpFlow } from './js/auth.js?v=6';
-import { loadLocations } from './js/locations.js?v=6';
-import { switchAppView, showApp, showAuth, initNavigation } from './js/navigation.js?v=6';
-import { renderDashboard, initDashboard, setShowDraftsOnly, resetFilterLock } from './js/dashboard.js?v=6';
-import { openAssessmentForm, initAssessmentForm } from './js/assessmentForm.js?v=6';
-import { renderSuperAdminDashboard, initSuperAdmin } from './js/superAdmin.js?v=6';
-import './js/modal.js?v=6'; // Initialize confirm/alert modal system
+import { getCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth, getResetOtpFlow } from './js/auth.js?v=9';
+import { loadLocations } from './js/locations.js?v=9';
+import { switchAppView, showApp, showAuth, initNavigation } from './js/navigation.js?v=9';
+import { renderDashboard, initDashboard, setShowDraftsOnly, resetFilterLock } from './js/dashboard.js?v=9';
+import { openAssessmentForm, initAssessmentForm } from './js/assessmentForm.js?v=9';
+import { renderSuperAdminDashboard, initSuperAdmin } from './js/superAdmin.js?v=9';
+import './js/modal.js?v=9'; // Initialize confirm/alert modal system
 
 document.addEventListener('DOMContentLoaded', async () => {
     const successModal = document.getElementById('success-modal');

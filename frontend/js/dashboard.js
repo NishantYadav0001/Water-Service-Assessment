@@ -295,16 +295,18 @@ export async function renderDashboard() {
         let actionBtn = '';
         // BUG-02 + BUG-06: Safe translations + escaped record IDs
         const safeId = escapeHtml(record.id);
-        if (record.status.toLowerCase() === 'draft' && currentUser.role === 'GP User') {
+        const recordStatus = record.status.toLowerCase();
+        
+        if ((recordStatus === 'draft' || recordStatus === 'rejected') && currentUser.role === 'GP User') {
             if (currentUser.account_status === 'restricted') {
                 actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
             } else {
-                actionBtn = `
-                    <button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>
-                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>
-                `;
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>`;
+                if (recordStatus === 'draft') {
+                    actionBtn += `\n                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>`;
+                }
             }
-        } else if (record.status.toLowerCase() === 'submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
+        } else if (recordStatus === 'submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
         } else {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
