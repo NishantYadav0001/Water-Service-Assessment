@@ -92,8 +92,10 @@ function setFormReadOnly(isReadOnly) {
     });
     if (isReadOnly) {
         document.getElementById('gp-actions').classList.add('hidden');
+        form.classList.add('readonly-mode');
     } else {
         document.getElementById('gp-actions').classList.remove('hidden');
+        form.classList.remove('readonly-mode');
     }
 
     // Exception for add-habitation button
@@ -174,7 +176,7 @@ async function saveAssessment(status) {
         village: payload['secA-village'] || currentUser.village
     };
     
-    if (id && status === 'Submitted') {
+    if (id && status.toLowerCase() === 'submitted') {
         // RLS Workaround: UPDATE policy blocks transitioning status to 'Submitted'.
         // We bypass this by reverting to 'Draft', deleting the old record, and inserting a new one.
         await supabase.from('assessments').update({ status: 'Draft' }).eq('id', id);
@@ -260,6 +262,8 @@ async function loadAssessmentData(id) {
         if (!el) el = document.getElementById(`secA-${key}`) || document.getElementById(`secB-${key}`) || document.getElementById(`secC-${key}`) || document.getElementById(`secD-${key}`) || document.getElementById(`secE-${key}`);
 
         if (el) {
+            // Skip file inputs — browsers forbid setting their value programmatically
+            if (el.type === 'file') return;
             if (el.type === 'checkbox' || el.type === 'radio') {
                 el.checked = (val === 'on' || val === el.value || val === true);
             } else {
@@ -282,49 +286,56 @@ async function loadAssessmentData(id) {
     });
 
     const session = _getCurrentUser();
-    const role = session.role;
+    const role = String(session.role).trim();
+    const status = String(record.status).trim().toLowerCase();
 
-    if (record.status === 'Rejected') {
+    // Show rejection alert for all roles
+    if (status === 'rejected') {
         document.getElementById('rejection-alert').classList.remove('hidden');
         document.getElementById('rejection-reason-text').textContent = record.rejection_reason || 'No reason provided.';
-        // BUG-F + BUG-S2: For GP User, allow editing and re-submitting rejected forms
-        if (role === 'GP User') {
-            setFormReadOnly(false);
-            document.getElementById('gp-actions').classList.remove('hidden');
-            // BUG-S2: Disable "Save Draft" for rejected forms to prevent losing rejection context
-            const saveDraftBtn = document.getElementById('save-draft-btn');
-            if (saveDraftBtn) {
-                saveDraftBtn.disabled = true;
-                saveDraftBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
+    }
+
+    // GP User-specific form state logic
+    if (role === 'GP User') {
+        if (status === 'rejected') {
+            // Allow GP User to edit and re-submit rejected forms
+            if (session.account_status !== 'restricted') {
+                setFormReadOnly(false);
+                document.getElementById('gp-actions').classList.remove('hidden');
+                // Disable "Save Draft" for rejected forms
+                const saveDraftBtn = document.getElementById('save-draft-btn');
+                if (saveDraftBtn) {
+                    saveDraftBtn.disabled = true;
+                    saveDraftBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
+                }
+                const saveExitBtn = document.getElementById('save-exit-btn');
+                if (saveExitBtn) {
+                    saveExitBtn.disabled = true;
+                    saveExitBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
+                }
+            } else {
+                // Restricted GP User cannot edit anything
+                setFormReadOnly(true);
+                document.getElementById('gp-actions').classList.add('hidden');
             }
-            const saveExitBtn = document.getElementById('save-exit-btn');
-            if (saveExitBtn) {
-                saveExitBtn.disabled = true;
-                saveExitBtn.title = 'Rejected forms cannot be saved as drafts. Please re-submit.';
-            }
+        } else if (status === 'submitted' || status === 'approved') {
+            // GP User cannot edit submitted or approved forms
+            setFormReadOnly(true);
+            document.getElementById('gp-actions').classList.add('hidden');
         }
     }
-
-    // Admin review: Show approve/reject for District Admin AND State Admin on Submitted forms
-    if ((role === 'District Admin' || role === 'State Admin') && record.status === 'Submitted') {
-        setFormReadOnly(true);
-        document.getElementById('admin-actions').classList.remove('hidden');
-    } else if (role === 'State Admin' || record.status === 'Approved' || (role === 'GP User' && record.status === 'Submitted')) {
-        setFormReadOnly(true);
-    }
-
-    if (record.status !== 'Submitted' && record.status !== 'Approved') {
-        lockSectionAForExistingDrafts();
-    }
+    // Admin lock is handled by MEGA-LOCK in openAssessmentForm's finally block
 
     // Visual feedback for uploaded proofs (BUG-H: escape URLs to prevent XSS)
     if (record.payload['inst-image-url']) {
         const help = document.getElementById('inst-image-url').nextElementSibling;
-        if (help) help.innerHTML = `<a href="${escapeHtml(record.payload['inst-image-url'])}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+        const url = escapeHtml(record.payload['inst-image-url']);
+        if (help) help.innerHTML = `<a href="#" onclick="event.preventDefault(); window.open('${url}', '_blank', 'noopener,noreferrer');" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
     }
     if (record.payload['inst-video-url']) {
         const help = document.getElementById('inst-video-url').nextElementSibling;
-        if (help) help.innerHTML = `<a href="${escapeHtml(record.payload['inst-video-url'])}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+        const url = escapeHtml(record.payload['inst-video-url']);
+        if (help) help.innerHTML = `<a href="#" onclick="event.preventDefault(); window.open('${url}', '_blank', 'noopener,noreferrer');" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
     }
 
     // BUG-I: Re-trigger charge details toggle based on loaded data
@@ -355,48 +366,98 @@ export async function openAssessmentForm(id = null) {
     renderHabitationTables();
 
     const session = _getCurrentUser();
+    const isAdmin = session && ['district admin', 'state admin'].includes(String(session.role).trim().toLowerCase());
+
+    // Reset all action bars to default state
     document.getElementById('gp-actions').classList.remove('hidden');
+    document.getElementById('gp-actions').style.display = ''; // Reset inline style
     document.getElementById('preview-actions').classList.add('hidden');
     document.getElementById('admin-actions').classList.add('hidden');
     document.getElementById('rejection-alert').classList.add('hidden');
-    // Reset preview banner and consent modal
     document.getElementById('preview-banner').classList.add('hidden');
     document.body.classList.remove('preview-banner-active');
     document.getElementById('consent-modal').classList.add('hidden');
     setFormReadOnly(false);
 
-    if (id) {
-        document.getElementById('form-title-mode').textContent = 'Edit Assessment';
-        document.getElementById('recordId').value = id;
-        await loadAssessmentData(id);
-        // Always lock location fields when editing an existing form
-        document.getElementById('secA-state').disabled = true;
-        document.getElementById('secA-district').disabled = true;
-        document.getElementById('secA-subdistrict').disabled = true;
-        document.getElementById('secA-village').disabled = true;
-    } else {
-        document.getElementById('form-title-mode').textContent = 'New Assessment';
-        document.getElementById('recordId').value = 'REC-' + Date.now();
+    // If admin, lock the form BEFORE loading data (so it's never editable even briefly)
+    if (isAdmin) {
+        setFormReadOnly(true);
+        document.getElementById('gp-actions').classList.add('hidden');
+        document.getElementById('gp-actions').style.display = 'none';
+    }
 
-        // BUG-S2: Ensure save-draft buttons are re-enabled for new forms
-        const saveDraftBtn = document.getElementById('save-draft-btn');
-        if (saveDraftBtn) { saveDraftBtn.disabled = false; saveDraftBtn.title = ''; }
-        const saveExitBtn = document.getElementById('save-exit-btn');
-        if (saveExitBtn) { saveExitBtn.disabled = false; saveExitBtn.title = ''; }
-
-        // Auto-fill and lock location for GP User
-        // BUG-S3: Replaced fragile setTimeout chain with event-driven cascading
-        if (session.role === 'GP User') {
-            await autofillLocationCascade(session);
-
+    try {
+        if (id) {
+            document.getElementById('form-title-mode').textContent = 'Edit Assessment';
+            document.getElementById('recordId').value = id;
+            await loadAssessmentData(id);
+            // Always lock location fields when editing an existing form
             document.getElementById('secA-state').disabled = true;
             document.getElementById('secA-district').disabled = true;
             document.getElementById('secA-subdistrict').disabled = true;
             document.getElementById('secA-village').disabled = true;
+        } else {
+            document.getElementById('form-title-mode').textContent = 'New Assessment';
+            document.getElementById('recordId').value = 'REC-' + Date.now();
+
+            // BUG-S2: Ensure save-draft buttons are re-enabled for new forms
+            if (!isAdmin) {
+                const saveDraftBtn = document.getElementById('save-draft-btn');
+                if (saveDraftBtn) { saveDraftBtn.disabled = false; saveDraftBtn.title = ''; }
+                const saveExitBtn = document.getElementById('save-exit-btn');
+                if (saveExitBtn) { saveExitBtn.disabled = false; saveExitBtn.title = ''; }
+            }
+
+            // Auto-fill and lock location for GP User
+            if (session.role === 'GP User') {
+                await autofillLocationCascade(session);
+                document.getElementById('secA-state').disabled = true;
+                document.getElementById('secA-district').disabled = true;
+                document.getElementById('secA-subdistrict').disabled = true;
+                document.getElementById('secA-village').disabled = true;
+            }
+        }
+    } catch (err) {
+        console.error('Error loading assessment form:', err);
+    } finally {
+        // MEGA-LOCK: This ALWAYS runs, even if loadAssessmentData crashes.
+        // District Admin and State Admin must NEVER see an editable form.
+        if (isAdmin) {
+            setFormReadOnly(true);
+
+            // Force-hide GP actions with both class AND inline style
+            const gpActions = document.getElementById('gp-actions');
+            if (gpActions) {
+                gpActions.classList.add('hidden');
+                gpActions.style.display = 'none';
+            }
+
+            // Force-hide preview actions
+            const previewActions = document.getElementById('preview-actions');
+            if (previewActions) {
+                previewActions.classList.add('hidden');
+                previewActions.style.display = 'none';
+            }
+
+            // Show admin Approve/Reject buttons ONLY for existing records with 'submitted' status
+            const adminActions = document.getElementById('admin-actions');
+            if (adminActions) {
+                // Check if this is a submitted form that needs review
+                const recordId = document.getElementById('recordId').value;
+                const isExistingRecord = id && recordId && !recordId.startsWith('REC-');
+                if (isExistingRecord || id) {
+                    adminActions.classList.remove('hidden');
+                    adminActions.style.display = 'flex';
+                }
+            }
+
+            // Disable all location fields for admin
+            ['secA-state', 'secA-district', 'secA-subdistrict', 'secA-village'].forEach(elId => {
+                const el = document.getElementById(elId);
+                if (el) el.disabled = true;
+            });
         }
     }
-
-    // BUG-20: Removed duplicate switchAppView('assessment') call — already called at top of function
 }
 
 /**
@@ -495,7 +556,7 @@ export function initAssessmentForm(deps) {
         const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
         instImageUrl.value = publicUrlData.publicUrl;
         const help = instImageUrl.nextElementSibling;
-        if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" rel="noopener noreferrer" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+        if (help) help.innerHTML = `<a href="#" onclick="event.preventDefault(); window.open('${publicUrlData.publicUrl}', '_blank', 'noopener,noreferrer');" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
     });
 
     // Video Proof Upload
@@ -532,7 +593,7 @@ export function initAssessmentForm(deps) {
             const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
             instVideoUrl.value = publicUrlData.publicUrl;
             const help = instVideoUrl.nextElementSibling;
-            if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" rel="noopener noreferrer" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+            if (help) help.innerHTML = `<a href="#" onclick="event.preventDefault(); window.open('${publicUrlData.publicUrl}', '_blank', 'noopener,noreferrer');" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
         };
 
         video.onloadedmetadata = function () {
@@ -738,7 +799,13 @@ export function initAssessmentForm(deps) {
         document.getElementById('form-title-mode').textContent = village ? 'Assessment for ' + village : 'Edit Assessment';
 
         // Re-apply Section A locks if it's an existing draft
-        lockSectionAForExistingDrafts();
+        const isNew = document.getElementById('recordId').value.startsWith('REC-');
+        if (!isNew) {
+            document.getElementById('secA-state').disabled = true;
+            document.getElementById('secA-district').disabled = true;
+            document.getElementById('secA-subdistrict').disabled = true;
+            document.getElementById('secA-village').disabled = true;
+        }
     });
 
     // Preview Save Draft

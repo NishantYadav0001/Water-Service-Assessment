@@ -77,7 +77,10 @@ export function populateSelect(selectEl, options, defaultText) {
         option.textContent = opt;
         selectEl.appendChild(option);
     });
-    selectEl.disabled = options.length === 0;
+    const form = selectEl.closest('form');
+    if (!(form && form.classList.contains('readonly-mode'))) {
+        selectEl.disabled = options.length === 0;
+    }
 }
 
 function setupCascading(stateId, districtId, subdistrictId, villageId, isFilter = false) {

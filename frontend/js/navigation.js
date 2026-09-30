@@ -107,10 +107,10 @@ export function showApp() {
         if (navToggleBtn) navToggleBtn.classList.add('hidden');
     }
 
-    // Hide "New Assessment" button for non-GP Users
+    // Hide "New Assessment" button for non-GP Users or restricted users
     const btnNewFormEl = document.getElementById('btn-new-form');
     if (btnNewFormEl) {
-        if (currentUser.role === 'GP User') {
+        if (currentUser.role === 'GP User' && currentUser.account_status !== 'restricted') {
             btnNewFormEl.classList.remove('hidden');
         } else {
             btnNewFormEl.classList.add('hidden');

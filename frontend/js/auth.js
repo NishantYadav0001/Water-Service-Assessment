@@ -72,6 +72,11 @@ async function loadCurrentUserProfile(email) {
         await supabase.auth.signOut();
         return;
     }
+    if (profile.account_status === 'frozen') {
+        alert('Access Denied: Your account has been frozen.');
+        await supabase.auth.signOut();
+        return;
+    }
 
     currentUser = profile;
     _showApp();

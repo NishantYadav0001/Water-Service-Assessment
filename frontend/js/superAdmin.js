@@ -10,7 +10,7 @@
 import { supabase } from './supabaseClient.js';
 import { escapeHtml, debounce } from './utils.js';
 
-let currentPendingUsers = [];
+let allFetchedUsersCache = [];
 
 // Injected dependencies
 let _getCurrentUser = null;
@@ -21,18 +21,38 @@ function renderUserRow(u, tbody) {
     let loc = [u.state, u.district, u.sub_district, u.village].filter(Boolean).join(', ');
     if (!loc) loc = 'N/A';
 
-    // BUG-06: Escape user-supplied data + BUG-13: correct badge classes
+    let actions = `
+        <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>
+    `;
+    if (u.role === 'GP User') {
+        if (u.account_status === 'frozen') {
+            actions += ` <button class="btn-outline btn-small unfreeze-user-btn text-success" data-email="${escapeHtml(u.email)}">Unfreeze</button>`;
+        } else {
+            actions += ` <button class="btn-outline btn-small freeze-user-btn text-warning" data-email="${escapeHtml(u.email)}">Freeze</button>`;
+        }
+        
+        if (u.account_status === 'restricted') {
+            actions += ` <button class="btn-outline btn-small unrestrict-user-btn text-success" data-email="${escapeHtml(u.email)}">Unrestrict</button>`;
+        } else {
+            actions += ` <button class="btn-outline btn-small restrict-user-btn text-warning" data-email="${escapeHtml(u.email)}">Restrict</button>`;
+        }
+    }
+
+    let statusBadgeClass = 'badge-draft';
+    if (u.account_status === 'approved') statusBadgeClass = 'badge-approved';
+    else if (u.account_status === 'frozen' || u.account_status === 'restricted') statusBadgeClass = 'badge-rejected';
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td>${escapeHtml(u.email.split('@')[0])}</td>
+        <td><a href="#" class="view-id-btn" data-email="${escapeHtml(u.email)}">${escapeHtml(u.email.split('@')[0])}</a></td>
         <td>${escapeHtml(u.email)}</td>
         <td><span class="badge ${u.role === 'GP User' ? 'badge-submitted' : 'badge-approved'}">${escapeHtml(u.role)}</span></td>
         <td><small>${escapeHtml(loc)}</small></td>
         <td>
-            <span class="badge ${u.account_status === 'approved' ? 'badge-approved' : 'badge-rejected'}">${escapeHtml(u.account_status)}</span>
+            <span class="badge ${statusBadgeClass}">${escapeHtml(u.account_status)}</span>
         </td>
         <td>
-            <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>
+            ${actions}
         </td>
     `;
     tbody.appendChild(tr);
@@ -54,7 +74,7 @@ function setupTableSearch(inputId, tbody) {
 }
 
 function viewUserDetails(email) {
-    const user = currentPendingUsers.find(u => u.email === email);
+    const user = allFetchedUsersCache.find(u => u.email === email);
     if (!user) {
         alert('User details not found in cache.');
         return;
@@ -154,7 +174,7 @@ export async function renderSuperAdminDashboard() {
     const pendingUsers = allUsers.filter(u => u.account_status === 'pending');
     const gpUsers = allUsers.filter(u => u.account_status !== 'pending' && u.role === 'GP User');
     const adminUsers = allUsers.filter(u => u.account_status !== 'pending' && u.role !== 'GP User');
-    currentPendingUsers = pendingUsers || [];
+    allFetchedUsersCache = allUsers || [];
 
     // --- Render Pending ---
     if (allUsersError || pendingUsers.length === 0) {
@@ -221,8 +241,13 @@ export function initSuperAdmin(deps) {
     const superadminViewContainer = document.getElementById('user-management-view');
     if (superadminViewContainer) {
         superadminViewContainer.addEventListener('click', async (e) => {
-            const btn = e.target.closest('button');
+            const btn = e.target.closest('button, a.view-id-btn');
             if (!btn) return;
+
+            // Prevent default navigation for anchor tags
+            if (btn.tagName === 'A') {
+                e.preventDefault();
+            }
 
             const email = btn.getAttribute('data-email');
             if (!email) return;
@@ -233,6 +258,30 @@ export function initSuperAdmin(deps) {
                 approveUser(email);
             } else if (btn.classList.contains('reject-user-btn')) {
                 rejectUser(email);
+            } else if (btn.classList.contains('freeze-user-btn')) {
+                if (confirm(`Are you sure you want to freeze the user ${email}?`)) {
+                    const { error } = await supabase.from('profiles').update({ account_status: 'frozen' }).eq('email', email);
+                    if (error) alert('Error freezing user: ' + error.message);
+                    else renderSuperAdminDashboard();
+                }
+            } else if (btn.classList.contains('unfreeze-user-btn')) {
+                if (confirm(`Are you sure you want to unfreeze the user ${email}?`)) {
+                    const { error } = await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
+                    if (error) alert('Error unfreezing user: ' + error.message);
+                    else renderSuperAdminDashboard();
+                }
+            } else if (btn.classList.contains('restrict-user-btn')) {
+                if (confirm(`Are you sure you want to restrict the user ${email} from filing assessments?`)) {
+                    const { error } = await supabase.from('profiles').update({ account_status: 'restricted' }).eq('email', email);
+                    if (error) alert('Error restricting user: ' + error.message);
+                    else renderSuperAdminDashboard();
+                }
+            } else if (btn.classList.contains('unrestrict-user-btn')) {
+                if (confirm(`Are you sure you want to remove restrictions for user ${email}?`)) {
+                    const { error } = await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
+                    if (error) alert('Error unrestricting user: ' + error.message);
+                    else renderSuperAdminDashboard();
+                }
             } else if (btn.classList.contains('delete-user-btn')) {
                 // BUG-C5: Warn that only the profile is deleted, not the auth account
                 if (confirm(`Are you sure you want to delete the user ${email}?\n\n⚠️ Note: This removes the user profile from the system. The authentication account will still exist in Supabase Auth and must be removed separately from the Supabase dashboard.`)) {

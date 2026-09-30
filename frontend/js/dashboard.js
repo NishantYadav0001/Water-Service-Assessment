@@ -14,6 +14,7 @@ import { escapeHtml, safeT, showToast, handleSupabaseError } from './utils.js';
 
 let showDraftsOnly = false;
 let filterLockedForRole = false;
+let _isLockingFilters = false; // Guard to prevent infinite loop during filter lock
 
 // Pagination state
 let currentPage = 1;
@@ -158,30 +159,57 @@ export async function renderDashboard() {
     }
 
     // Role-based filter locking (run ONCE per login, not on every render)
-    if (!filterLockedForRole && currentUser.role !== 'GP User') {
-        filterLockedForRole = true;
+    if (!filterLockedForRole && !_isLockingFilters && currentUser.role !== 'GP User') {
+        _isLockingFilters = true; // Prevent re-entry from change event listeners
         const filterStateEl = document.getElementById('filter-state');
         const filterDistEl = document.getElementById('filter-district');
 
-        if (currentUser.role === 'State Admin') {
-            if (filterStateEl && currentUser.state) {
-                filterStateEl.value = currentUser.state;
-                filterStateEl.disabled = true;
-                filterStateEl.dispatchEvent(new Event('change'));
-            }
-        } else if (currentUser.role === 'District Admin') {
-            if (filterStateEl && currentUser.state) {
-                filterStateEl.value = currentUser.state;
-                filterStateEl.disabled = true;
-                filterStateEl.dispatchEvent(new Event('change'));
-            }
-            await new Promise(r => setTimeout(r, 60));
-            if (filterDistEl && currentUser.district) {
-                filterDistEl.value = currentUser.district;
-                filterDistEl.disabled = true;
-                filterDistEl.dispatchEvent(new Event('change'));
+        // Wait for the state dropdown to have options (location data loaded)
+        let waited = 0;
+        while (filterStateEl.options.length <= 1 && waited < 5000) {
+            await new Promise(r => setTimeout(r, 100));
+            waited += 100;
+        }
+
+        // Only proceed if dropdown now has options
+        if (filterStateEl.options.length > 1) {
+            if (currentUser.role === 'State Admin') {
+                if (currentUser.state) {
+                    filterStateEl.value = currentUser.state;
+                    if (filterStateEl.value === currentUser.state) {
+                        filterStateEl.disabled = true;
+                        filterStateEl.dispatchEvent(new Event('change'));
+                        filterLockedForRole = true;
+                    }
+                }
+            } else if (currentUser.role === 'District Admin') {
+                if (currentUser.state) {
+                    filterStateEl.value = currentUser.state;
+                    if (filterStateEl.value === currentUser.state) {
+                        filterStateEl.disabled = true;
+                        filterStateEl.dispatchEvent(new Event('change'));
+
+                        // Wait for district dropdown to populate from the cascade
+                        let distWait = 0;
+                        while (filterDistEl.options.length <= 1 && distWait < 3000) {
+                            await new Promise(r => setTimeout(r, 50));
+                            distWait += 50;
+                        }
+
+                        if (currentUser.district) {
+                            filterDistEl.value = currentUser.district;
+                            if (filterDistEl.value === currentUser.district) {
+                                filterDistEl.disabled = true;
+                                filterDistEl.dispatchEvent(new Event('change'));
+                                filterLockedForRole = true;
+                            }
+                        }
+                    }
+                }
             }
         }
+        _isLockingFilters = false;
+        // If filterLockedForRole is still false, it will retry on next renderDashboard call
     }
 
     // Fetch assessments from Supabase
@@ -195,9 +223,9 @@ export async function renderDashboard() {
         }
         // Default view: show ALL records (drafts + submitted + approved + rejected)
     } else if (currentUser.role === 'District Admin') {
-        query = query.eq('district', currentUser.district).in('status', ['Submitted', 'Approved', 'Rejected']);
+        query = query.eq('district', currentUser.district).in('status', ['Submitted', 'submitted', 'Approved', 'approved', 'Rejected', 'rejected']);
     } else if (currentUser.role === 'State Admin') {
-        query = query.eq('state', currentUser.state).neq('status', 'Draft');
+        query = query.eq('state', currentUser.state).neq('status', 'Draft').neq('status', 'draft');
     }
 
     // BUG-S4: Apply location filters only when NOT already locked by role
@@ -229,7 +257,8 @@ export async function renderDashboard() {
         district: a.district,
         state: a.state,
         createdAt: a.created_at,
-        user_id: a.user_id
+        user_id: a.user_id,
+        rejection_reason: a.rejection_reason
     }));
 
     if (allFilteredRecords.length === 0) {
@@ -252,31 +281,33 @@ export async function renderDashboard() {
         let statusBadge = '';
         let displayStatus = safeT(record.status.toLowerCase(), record.status);
 
-        if (record.status === 'Submitted') {
+        if (record.status.toLowerCase() === 'submitted') {
             statusBadge = 'badge-submitted';
             if (currentUser.role === 'GP User') {
                 displayStatus = safeT('pending', 'Pending');
                 statusBadge = 'badge-draft';
             }
         }
-        else if (record.status === 'Approved') statusBadge = 'badge-approved';
-        else if (record.status === 'Rejected') statusBadge = 'badge-rejected';
+        else if (record.status.toLowerCase() === 'approved') statusBadge = 'badge-approved';
+        else if (record.status.toLowerCase() === 'rejected') statusBadge = 'badge-rejected';
         else statusBadge = 'badge-draft';
 
         let actionBtn = '';
         // BUG-02 + BUG-06: Safe translations + escaped record IDs
         const safeId = escapeHtml(record.id);
-        const exportBtn = `<button class="btn-outline btn-small export-record" style="margin-left:5px;" data-id="${safeId}" title="Export this record as CSV">📥 Export</button>`;
-        if (record.status === 'Draft' && currentUser.role === 'GP User') {
-            actionBtn = `
-                <button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>
-                <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>
-                ${exportBtn}
-            `;
-        } else if (record.status === 'Submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
-            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>${exportBtn}`;
+        if (record.status.toLowerCase() === 'draft' && currentUser.role === 'GP User') {
+            if (currentUser.account_status === 'restricted') {
+                actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
+            } else {
+                actionBtn = `
+                    <button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>
+                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>
+                `;
+            }
+        } else if (record.status.toLowerCase() === 'submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
+            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
         } else {
-            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>${exportBtn}`;
+            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
         }
 
         // Logic for date display
@@ -290,10 +321,15 @@ export async function renderDashboard() {
         }
 
         // BUG-06: Escape user-supplied village name
+        let titleAttr = '';
+        if (record.status.toLowerCase() === 'rejected' && record.rejection_reason) {
+            titleAttr = `title="Reason: ${escapeHtml(record.rejection_reason)}"`;
+        }
+
         tr.innerHTML = `
             <td>${escapeHtml(displayDate)}</td>
             <td>${escapeHtml(record.village) || 'N/A'}</td>
-            <td><span class="badge ${statusBadge}" data-i18n="${escapeHtml(record.status.toLowerCase())}">${escapeHtml(displayStatus)}</span></td>
+            <td><span class="badge ${statusBadge}" ${titleAttr} data-i18n="${escapeHtml(record.status.toLowerCase())}">${escapeHtml(displayStatus)}</span></td>
             <td>${actionBtn}</td>
         `;
         tbody.appendChild(tr);
@@ -447,6 +483,8 @@ export function initDashboard(deps) {
         const el = document.getElementById(id);
         if (el) {
             el.addEventListener('change', () => {
+                // Skip auto-refresh if we're programmatically locking filters
+                if (_isLockingFilters) return;
                 currentPage = 1; // Reset page on filter change
                 // Only refresh if we're on the dashboard and have a logged-in user
                 const dashView = document.getElementById('dashboard-view');

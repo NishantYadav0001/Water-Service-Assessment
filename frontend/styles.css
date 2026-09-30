@@ -42,6 +42,13 @@ body {
     display: none !important;
 }
 
+/* Action bar divs — display: flex by default, hidden class overrides */
+#gp-actions,
+#preview-actions,
+#admin-actions {
+    display: flex;
+}
+
 .flex {
     display: flex;
 }
