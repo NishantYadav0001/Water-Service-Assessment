@@ -208,24 +208,38 @@ async function loadAssessmentData(id) {
         return;
     }
 
-    // Populate location dropdowns manually so values can be set
-    const state = record.payload['secA-state'] || record.state;
-    const district = record.payload['secA-district'] || record.district;
-    const subdistrict = record.payload['secA-subdistrict'] || record.sub_district;
-    const village = record.payload['secA-village'] || record.village;
+    // Helper for case-insensitive and space-trimmed key lookup
+    function findKey(obj, searchKey) {
+        if (!obj || !searchKey) return null;
+        const search = String(searchKey).trim().toLowerCase();
+        for (const k of Object.keys(obj)) {
+            if (k.trim().toLowerCase() === search) return k;
+        }
+        return null;
+    }
 
-    if (state && locationData[state]) {
+    // Populate location dropdowns manually so values can be set
+    let rawState = record.payload['secA-state'] || record.state;
+    let rawDistrict = record.payload['secA-district'] || record.district;
+    let rawSubdistrict = record.payload['secA-subdistrict'] || record.sub_district;
+    let rawVillage = record.payload['secA-village'] || record.village;
+
+    const state = findKey(locationData, rawState);
+    if (state) {
         document.getElementById('secA-state').value = state;
         populateSelect(document.getElementById('secA-district'), Object.keys(locationData[state]).sort(), 'Select District');
 
-        if (district && locationData[state][district]) {
+        const district = findKey(locationData[state], rawDistrict);
+        if (district) {
             document.getElementById('secA-district').value = district;
             populateSelect(document.getElementById('secA-subdistrict'), Object.keys(locationData[state][district]).sort(), 'Select Sub-District');
 
-            if (subdistrict && locationData[state][district][subdistrict]) {
+            const subdistrict = findKey(locationData[state][district], rawSubdistrict);
+            if (subdistrict) {
                 document.getElementById('secA-subdistrict').value = subdistrict;
                 populateSelect(document.getElementById('secA-village'), locationData[state][district][subdistrict].sort(), 'Select Village');
 
+                const village = locationData[state][district][subdistrict].find(v => String(v).trim().toLowerCase() === String(rawVillage).trim().toLowerCase());
                 if (village) {
                     document.getElementById('secA-village').value = village;
                     document.getElementById('form-title-mode').textContent = 'Assessment for ' + village;
