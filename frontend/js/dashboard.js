@@ -76,6 +76,51 @@ function exportRecordsToCSV() {
 }
 
 /**
+ * Export a single assessment record as CSV.
+ */
+function exportSingleRecordToCSV(recordId) {
+    const record = allFilteredRecords.find(r => r.id === recordId);
+    if (!record) {
+        showToast('Record not found', 'error');
+        return;
+    }
+
+    // Build comprehensive CSV from the record's payload
+    const headers = ['Field', 'Value'];
+    const rows = [];
+
+    // Basic info
+    rows.push(['Record ID', record.id]);
+    rows.push(['Status', record.status]);
+    rows.push(['Village', record.village || '']);
+    rows.push(['Sub-District', record.sub_district || '']);
+    rows.push(['District', record.district || '']);
+    rows.push(['State', record.state || '']);
+    rows.push(['Created At', record.createdAt || '']);
+
+    // All payload fields
+    if (record.payload) {
+        Object.entries(record.payload).forEach(([key, value]) => {
+            rows.push([key, String(value ?? '')]);
+        });
+    }
+
+    const csvRows = rows.map(row =>
+        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    );
+    const csvContent = [headers.join(','), ...csvRows].join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const villageName = (record.village || 'record').replace(/[^a-zA-Z0-9]/g, '_');
+    link.href = url;
+    link.download = `assessment_${villageName}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(safeT('export_success', 'Record exported successfully!'));
+}
+
+/**
  * Render pagination controls based on current state.
  */
 function renderPagination(totalRecords) {
@@ -221,15 +266,17 @@ export async function renderDashboard() {
         let actionBtn = '';
         // BUG-02 + BUG-06: Safe translations + escaped record IDs
         const safeId = escapeHtml(record.id);
+        const exportBtn = `<button class="btn-outline btn-small export-record" style="margin-left:5px;" data-id="${safeId}" title="Export this record as CSV">📥 Export</button>`;
         if (record.status === 'Draft' && currentUser.role === 'GP User') {
             actionBtn = `
                 <button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="edit">${safeT('edit', 'Edit')}</button>
                 <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>
+                ${exportBtn}
             `;
         } else if (record.status === 'Submitted' && (currentUser.role === 'District Admin' || currentUser.role === 'State Admin')) {
-            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
+            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>${exportBtn}`;
         } else {
-            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
+            actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>${exportBtn}`;
         }
 
         // Logic for date display
@@ -259,6 +306,14 @@ export async function renderDashboard() {
         btn.addEventListener('click', (e) => {
             const id = e.target.getAttribute('data-id');
             _openAssessmentForm(id);
+        });
+    });
+
+    // Per-record export buttons
+    document.querySelectorAll('.export-record').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const id = e.target.getAttribute('data-id');
+            exportSingleRecordToCSV(id);
         });
     });
 

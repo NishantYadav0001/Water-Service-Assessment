@@ -227,6 +227,13 @@ export function initNavigation(deps) {
     // Auth view toggle: Login ↔ Register
     document.getElementById('show-register').addEventListener('click', (e) => {
         e.preventDefault();
+
+        // Lazy-load location data when user wants to register
+        if (!_locationsLoaded && _loadLocations) {
+            _locationsLoaded = true;
+            _loadLocations();
+        }
+
         loginView.classList.add('hidden');
         loginView.classList.remove('active');
         document.getElementById('register-view').classList.remove('hidden');

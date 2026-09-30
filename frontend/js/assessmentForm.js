@@ -154,7 +154,6 @@ async function saveAssessment(status) {
     const payload = collectFormData();
 
     const record = {
-        id: id,
         status: status,
         payload: payload,
         user_id: currentUser.email,
@@ -163,11 +162,17 @@ async function saveAssessment(status) {
         sub_district: payload['secA-subdistrict'] || currentUser.sub_district,
         village: payload['secA-village'] || currentUser.village
     };
+    
+    if (id) {
+        record.id = id;
+    }
 
-    const { error } = await supabase.from('assessments').upsert(record);
+    const { data, error } = await supabase.from('assessments').upsert(record).select().single();
     if (error) {
         console.error("Failed to save assessment:", error);
         alert('Failed to save assessment: ' + error.message);
+    } else if (data) {
+        document.getElementById('recordId').value = data.id;
     }
 }
 
@@ -287,11 +292,26 @@ async function loadAssessmentData(id) {
         setFormReadOnly(true);
     }
 
-    // Lock location fields for all users when editing an existing draft to maintain data consistency
-    document.getElementById('secA-state').disabled = true;
-    document.getElementById('secA-district').disabled = true;
-    document.getElementById('secA-subdistrict').disabled = true;
-    document.getElementById('secA-village').disabled = true;
+    // Lock ALL Section A fields for all users when editing an existing draft to maintain data consistency
+    const sectionAIds = [
+        'secA-state', 'secA-district', 'secA-subdistrict', 'secA-village',
+        'secA-date', 'secA-year', 'secA-totalHHs', 'secA-habitations'
+    ];
+    sectionAIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = true;
+    });
+
+    const addHabBtnEl = document.getElementById('add-habitation-btn');
+    if (addHabBtnEl) addHabBtnEl.style.display = 'none';
+
+    document.querySelectorAll('#habitations-fhtc-table input, #habitations-adequacy-table input').forEach(el => {
+        el.disabled = true;
+    });
+
+    document.getElementsByName('membersPresent').forEach(el => {
+        el.disabled = true;
+    });
 
     // Visual feedback for uploaded proofs (BUG-H: escape URLs to prevent XSS)
     if (record.payload['inst-image-url']) {
@@ -442,6 +462,14 @@ export function initAssessmentForm(deps) {
     _switchAppView = deps.switchAppView;
     _successModal = deps.successModal;
 
+    // Prevent native form submission — without this, clicking dynamically created
+    // links (View Uploaded Image/Video) or pressing Enter inside text inputs
+    // triggers a full page reload, resetting the SPA back to the dashboard.
+    const assessmentForm = document.getElementById('assessment-form');
+    assessmentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+    });
+
     // Institutional validation header checks
     q1.addEventListener('change', checkValidationHeader);
     q2.addEventListener('change', checkValidationHeader);
@@ -468,7 +496,7 @@ export function initAssessmentForm(deps) {
         const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
         instImageUrl.value = publicUrlData.publicUrl;
         const help = instImageUrl.nextElementSibling;
-        if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
+        if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" rel="noopener noreferrer" class="text-success" data-i18n="view_uploaded_image">View Uploaded Image</a>`;
     });
 
     // Video Proof Upload
@@ -505,7 +533,7 @@ export function initAssessmentForm(deps) {
             const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
             instVideoUrl.value = publicUrlData.publicUrl;
             const help = instVideoUrl.nextElementSibling;
-            if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
+            if (help) help.innerHTML = `<a href="${publicUrlData.publicUrl}" target="_blank" rel="noopener noreferrer" class="text-success" data-i18n="view_uploaded_video">View Uploaded Video</a>`;
         };
 
         video.onloadedmetadata = function () {
