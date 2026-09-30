@@ -12,7 +12,9 @@ import { safeT } from './utils.js';
 
 // BUG-C4: Centralized Super Admin role check — handles both 'SuperAdmin' and 'Super Admin'
 function isSuperAdmin(role) {
-    return role === 'SuperAdmin' || role === 'Super Admin';
+    if (!role) return false;
+    const r = String(role).toLowerCase().replace(/\s+/g, '');
+    return r === 'superadmin';
 }
 
 // --- DOM references (cached once) ---
@@ -107,8 +109,8 @@ export async function showApp() {
         else roleBadge.classList.add('role-gpuser');
     }
 
-    // Show nav toggle for State Admin and District Admin
-    if (['State Admin', 'District Admin'].includes(currentUser.role)) {
+    // Show nav toggle for Super Admin, State Admin and District Admin
+    if (isSuperAdmin(currentUser.role) || ['State Admin', 'District Admin'].includes(currentUser.role)) {
         if (navToggleBtn) navToggleBtn.classList.remove('hidden');
     } else {
         if (navToggleBtn) navToggleBtn.classList.add('hidden');

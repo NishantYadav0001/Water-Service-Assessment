@@ -346,7 +346,7 @@ async function loadAssessmentData(id) {
                 document.getElementById('gp-actions').classList.add('hidden');
             }
         }
-    } else if (role.toLowerCase() === 'district admin' || role.toLowerCase() === 'state admin') {
+    } else if (['districtadmin', 'stateadmin', 'superadmin'].includes(role.toLowerCase().replace(/\s+/g, ''))) {
         const adminActions = document.getElementById('admin-actions');
         if (adminActions) {
             if (status === 'submitted') {
@@ -411,7 +411,8 @@ export async function openAssessmentForm(id = null) {
     renderHabitationTables();
 
     const session = _getCurrentUser();
-    const isAdmin = session && ['district admin', 'state admin'].includes(String(session.role).trim().toLowerCase());
+    const currentRole = String(session?.role).trim().toLowerCase().replace(/\s+/g, '');
+    const isAdmin = session && ['districtadmin', 'stateadmin', 'superadmin'].includes(currentRole);
 
     // Reset all action bars to default state
     document.getElementById('gp-actions').classList.remove('hidden');

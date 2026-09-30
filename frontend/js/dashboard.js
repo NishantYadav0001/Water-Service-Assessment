@@ -152,11 +152,17 @@ export async function renderDashboard() {
     const currentUser = _getCurrentUser();
     if (!currentUser) return;
 
-    // Show filter card for admins, hide for GP Users
+    // Show filter card and admin columns for admins, hide for GP Users
     const filterCard = document.querySelector('.filter-card');
+    const adminCols = document.querySelectorAll('th[data-i18n="submitted_by"]');
+    
     if (filterCard) {
         filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
     }
+    
+    adminCols.forEach(col => {
+        col.style.display = (currentUser.role === 'GP User') ? 'none' : '';
+    });
 
     // Role-based filter locking (run ONCE per login, not on every render)
     if (!filterLockedForRole && !_isLockingFilters && currentUser.role !== 'GP User') {
@@ -243,7 +249,7 @@ export async function renderDashboard() {
 
     if (error) {
         handleSupabaseError(error, 'fetching assessments');
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
         renderPagination(0);
         return;
     }
@@ -263,7 +269,7 @@ export async function renderDashboard() {
 
     if (allFilteredRecords.length === 0) {
         // BUG-02: use safeT instead of raw window.t()
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted" data-i18n="no_records">${safeT('no_records', 'No records found')}</td></tr>`;
         renderPagination(0);
         return;
     }
@@ -328,9 +334,13 @@ export async function renderDashboard() {
             titleAttr = `title="Reason: ${escapeHtml(record.rejection_reason)}"`;
         }
 
+        const showSubmittedBy = currentUser.role !== 'GP User';
+        const submittedByTd = showSubmittedBy ? `<td>${escapeHtml(record.user_id || 'Unknown')}</td>` : '';
+
         tr.innerHTML = `
             <td>${escapeHtml(displayDate)}</td>
             <td>${escapeHtml(record.village) || 'N/A'}</td>
+            ${submittedByTd}
             <td><span class="badge ${statusBadge}" ${titleAttr} data-i18n="${escapeHtml(record.status.toLowerCase())}">${escapeHtml(displayStatus)}</span></td>
             <td>${actionBtn}</td>
         `;

@@ -21,10 +21,13 @@ function renderUserRow(u, tbody) {
     let loc = [u.state, u.district, u.sub_district, u.village].filter(Boolean).join(', ');
     if (!loc) loc = 'N/A';
 
+    const currentUser = _getCurrentUser();
+    const isSuperAdmin = currentUser && String(currentUser.role).trim().toLowerCase().replace(/\s+/g, '') === 'superadmin';
+
     let actions = `
         <button class="btn-outline btn-small delete-user-btn text-danger" data-email="${escapeHtml(u.email)}">Delete</button>
     `;
-    if (u.role === 'GP User') {
+    if (u.role === 'GP User' || isSuperAdmin) {
         if (u.account_status === 'frozen') {
             actions += ` <button class="btn-outline btn-small unfreeze-user-btn text-success" data-email="${escapeHtml(u.email)}">Unfreeze</button>`;
         } else {

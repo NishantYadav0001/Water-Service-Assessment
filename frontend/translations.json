@@ -34,6 +34,7 @@
         "assessment_records": "Assessment Records",
         "date": "Date",
         "village_name": "Village Name",
+        "submitted_by": "Submitted By",
         "status": "Status",
         "action": "Action",
         "back_dashboard": "← Back to Dashboard",
