@@ -6,12 +6,13 @@
  * and kicks off initialization.
  */
 
-import { getCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth, getResetOtpFlow } from './js/auth.js';
+import { getCurrentUser, setCurrentUser, getIsFormDirty, setIsFormDirty, logout, initAuth, getResetOtpFlow } from './js/auth.js';
 import { loadLocations } from './js/locations.js';
 import { switchAppView, showApp, showAuth, initNavigation } from './js/navigation.js';
 import { renderDashboard, initDashboard, setShowDraftsOnly, resetFilterLock } from './js/dashboard.js';
 import { openAssessmentForm, initAssessmentForm } from './js/assessmentForm.js';
 import { renderSuperAdminDashboard, initSuperAdmin } from './js/superAdmin.js';
+import { renderUserProfile, initProfile } from './js/profile.js';
 import './js/modal.js'; // Initialize confirm/alert modal system
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         getIsFormDirty,
         renderDashboard,
         renderSuperAdminDashboard,
+        renderUserProfile,
         logout,
         setShowDraftsOnly,
         successModal,
@@ -53,6 +55,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initSuperAdmin({
         getCurrentUser
+    });
+
+    initProfile({
+        getCurrentUser,
+        setCurrentUser,
+        switchAppView
     });
 
     initAuth({

@@ -54,13 +54,52 @@ export function getResetOtpFlow() {
 }
 
 async function loadCurrentUserProfile(email) {
-    const { data: profile, error } = await supabase.from('profiles').select('*').eq('email', email).single();
+    let { data: profile, error } = await supabase.from('profiles').select('*').eq('email', email).single();
     if (error || !profile) {
         if (!isRegistering) {
-            showAlert("Profile not found. If your account was deleted by an admin, please register again using your existing password.", "Access Denied");
-            await supabase.auth.signOut();
+            // Auto-create / make profile for every user who logs in (GP USER, STATE ADMIN, DISTRICT ADMIN, SUPER ADMIN)
+            console.log(`Profile not found for ${email}. Auto-generating profile...`);
+            
+            let inferredRole = 'GP User';
+            const lowerEmail = email.toLowerCase();
+            if (lowerEmail.includes('superadmin') || lowerEmail.includes('super_admin')) {
+                inferredRole = 'Super Admin';
+            } else if (lowerEmail.includes('stateadmin') || lowerEmail.includes('state_admin')) {
+                inferredRole = 'State Admin';
+            } else if (lowerEmail.includes('districtadmin') || lowerEmail.includes('district_admin')) {
+                inferredRole = 'District Admin';
+            }
+
+            const newProfile = {
+                email: email,
+                role: inferredRole,
+                state: (inferredRole === 'Super Admin') ? 'All-India' : '',
+                district: (inferredRole === 'Super Admin' || inferredRole === 'State Admin') ? null : '',
+                sub_district: (inferredRole === 'Super Admin' || inferredRole === 'State Admin' || inferredRole === 'District Admin') ? null : '',
+                village: (inferredRole === 'Super Admin' || inferredRole === 'State Admin' || inferredRole === 'District Admin') ? null : '',
+                account_status: 'approved',
+                id_proof_url: null
+            };
+
+            const { data: insertedProfile, error: insertError } = await supabase.from('profiles').insert([newProfile]).select().single();
+            if (insertError) {
+                console.warn('Profile insert warning:', insertError.message);
+                profile = newProfile;
+            } else {
+                profile = insertedProfile || newProfile;
+            }
+        } else {
+            return;
         }
-        return;
+    }
+
+    if (!profile) return;
+
+    // Super Admin is never blocked by pending status
+    const isSuperAdminRole = String(profile.role).toLowerCase().replace(/\s+/g, '') === 'superadmin';
+    if (isSuperAdminRole && profile.account_status !== 'approved') {
+        profile.account_status = 'approved';
+        await supabase.from('profiles').update({ account_status: 'approved' }).eq('email', email);
     }
 
     if (profile.account_status === 'pending') {
@@ -436,12 +475,27 @@ export function initAuth(deps) {
             locGroup.classList.add('hidden');
             return;
         }
+
+        if (role === 'Super Admin') {
+            // Super Admin has nationwide jurisdiction — location fields are not required
+            locGroup.classList.add('hidden');
+            distGroup.classList.add('hidden');
+            subGroup.classList.add('hidden');
+            villGroup.classList.add('hidden');
+            document.getElementById('reg-state').required = false;
+            document.getElementById('reg-district').required = false;
+            document.getElementById('reg-subdistrict').required = false;
+            document.getElementById('reg-village').required = false;
+            return;
+        }
+
         if (!isLocationDataReady()) {
             alert('Geographic data is still loading. Please wait a moment and try again.');
             e.target.value = '';
             return;
         }
         locGroup.classList.remove('hidden');
+        document.getElementById('reg-state').required = true;
 
         distGroup.classList.remove('hidden');
         subGroup.classList.remove('hidden');
@@ -506,14 +560,18 @@ export function initAuth(deps) {
         const subdistrict = document.getElementById('reg-subdistrict').value;
         const village = document.getElementById('reg-village').value;
 
-        if (!state) { alert('Please select a State.'); return; }
-        if ((role === 'District Admin' || role === 'GP User') && !district) { alert('Please select a District.'); return; }
-        if (role === 'GP User' && !subdistrict) { alert('Please select a Sub-District.'); return; }
-        if (role === 'GP User' && !village) { alert('Please select a Village.'); return; }
-        if (!idProofFile) { alert('Please upload an ID proof.'); return; }
+        const isSuperAdminRole = role === 'Super Admin';
+
+        if (!isSuperAdminRole) {
+            if (!state) { alert('Please select a State.'); return; }
+            if ((role === 'District Admin' || role === 'GP User') && !district) { alert('Please select a District.'); return; }
+            if (role === 'GP User' && !subdistrict) { alert('Please select a Sub-District.'); return; }
+            if (role === 'GP User' && !village) { alert('Please select a Village.'); return; }
+        }
+        if (!idProofFile && !isSuperAdminRole) { alert('Please upload an ID proof.'); return; }
 
         // MISS-10: Validate ID proof file size (max 2 MB)
-        if (idProofFile.size > 2 * 1024 * 1024) {
+        if (idProofFile && idProofFile.size > 2 * 1024 * 1024) {
             alert('ID proof file must be less than 2 MB.');
             return;
         }
@@ -524,16 +582,19 @@ export function initAuth(deps) {
             return;
         }
 
-        // Upload ID proof
-        const fileName = `${Date.now()}_${idProofFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage.from('id-proofs').upload(fileName, idProofFile);
+        // Upload ID proof if provided
+        let idProofUrl = null;
+        if (idProofFile) {
+            const fileName = `${Date.now()}_${idProofFile.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage.from('id-proofs').upload(fileName, idProofFile);
 
-        if (uploadError) {
-            alert('Failed to upload ID proof: ' + uploadError.message);
-            return;
+            if (uploadError) {
+                alert('Failed to upload ID proof: ' + uploadError.message);
+                return;
+            }
+            const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
+            idProofUrl = publicUrlData.publicUrl;
         }
-        const { data: publicUrlData } = supabase.storage.from('id-proofs').getPublicUrl(fileName);
-        const idProofUrl = publicUrlData.publicUrl;
 
         // Sign Up Auth
         isRegistering = true;
@@ -567,15 +628,16 @@ export function initAuth(deps) {
             }
         }
 
-        // Insert Profile
+        // Insert Profile — Super Admin is approved automatically; others are pending
+        const profileStatus = isSuperAdminRole ? 'approved' : 'pending';
         const { error: profileError } = await supabase.from('profiles').insert([{
             email: email,
             role: role,
-            state: state,
-            district: district,
-            sub_district: subdistrict,
-            village: village,
-            account_status: 'pending',
+            state: isSuperAdminRole ? 'All-India' : state,
+            district: (isSuperAdminRole || role === 'State Admin') ? null : district,
+            sub_district: (isSuperAdminRole || role === 'State Admin' || role === 'District Admin') ? null : subdistrict,
+            village: (isSuperAdminRole || role === 'State Admin' || role === 'District Admin') ? null : village,
+            account_status: profileStatus,
             id_proof_url: idProofUrl
         }]);
 
@@ -585,11 +647,15 @@ export function initAuth(deps) {
             return;
         }
 
-        alert('Registration successful. Your account is pending verification by the Super Admin. You will be able to log in once approved.');
+        if (isSuperAdminRole) {
+            alert('Super Admin registration successful! You can now log in.');
+        } else {
+            alert('Registration successful. Your account is pending verification by the Super Admin. You will be able to log in once approved.');
+        }
         document.getElementById('show-login').click();
         e.target.reset();
 
-        // Ensure the session is cleared because their account is pending
+        // Ensure the session is cleared because their account is pending (or for clean login)
         await supabase.auth.signOut();
         isRegistering = false;
     });

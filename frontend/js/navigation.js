@@ -24,13 +24,18 @@ const loginView = document.getElementById('login-view');
 const dashboardView = document.getElementById('dashboard-view');
 const assessmentView = document.getElementById('form-view');
 const superadminView = document.getElementById('user-management-view');
+const profileView = document.getElementById('profile-view');
 const navToggleBtn = document.getElementById('nav-toggle-btn');
+const userNameEl = document.getElementById('current-user-name');
+const userRoleEl = document.getElementById('current-user-role');
+const headerAvatarInitials = document.getElementById('header-avatar-initials');
 
 // These will be injected via initNavigation()
 let _getCurrentUser = null;
 let _getIsFormDirty = null;
 let _renderDashboard = null;
 let _renderSuperAdminDashboard = null;
+let _renderUserProfile = null;
 let _logout = null;
 let _setShowDraftsOnly = null;
 let _successModal = null;
@@ -47,6 +52,10 @@ export function switchAppView(view) {
     if (superadminView) {
         superadminView.classList.add('hidden');
         superadminView.classList.remove('active');
+    }
+    if (profileView) {
+        profileView.classList.add('hidden');
+        profileView.classList.remove('active');
     }
 
     // Persist current view
@@ -75,6 +84,12 @@ export function switchAppView(view) {
             superadminView.classList.add('active');
             if (_renderSuperAdminDashboard) _renderSuperAdminDashboard();
         }
+    } else if (view === 'profile') {
+        if (profileView) {
+            profileView.classList.remove('hidden');
+            profileView.classList.add('active');
+            if (_renderUserProfile) _renderUserProfile();
+        }
     } else {
         assessmentView.classList.remove('hidden');
         assessmentView.classList.add('active');
@@ -96,6 +111,14 @@ export async function showApp() {
     }
 
     document.getElementById('current-user-name').textContent = currentUser.email.split('@')[0] || currentUser.email;
+
+    // Set avatar initial or emoji
+    if (headerAvatarInitials) {
+        if (isSuperAdmin(currentUser.role)) headerAvatarInitials.textContent = '👑';
+        else if (currentUser.role === 'State Admin') headerAvatarInitials.textContent = '🏛️';
+        else if (currentUser.role === 'District Admin') headerAvatarInitials.textContent = '🏢';
+        else headerAvatarInitials.textContent = '👤';
+    }
 
     // MISS-6: Display role badge next to username
     const roleBadge = document.getElementById('current-user-role');
@@ -140,8 +163,9 @@ export async function showApp() {
     const savedView = sessionStorage.getItem('currentAppView');
     const savedAssessmentId = sessionStorage.getItem('currentAssessmentId');
 
-    // BUG-C4: Normalized Super Admin check
-    if (isSuperAdmin(currentUser.role)) {
+    if (savedView === 'profile') {
+        switchAppView('profile');
+    } else if (isSuperAdmin(currentUser.role)) {
         if (savedView === 'superadmin' || !savedView) {
             switchAppView('superadmin');
             if (navToggleBtn) {
@@ -223,6 +247,7 @@ export function initNavigation(deps) {
     _getIsFormDirty = deps.getIsFormDirty;
     _renderDashboard = deps.renderDashboard;
     _renderSuperAdminDashboard = deps.renderSuperAdminDashboard;
+    _renderUserProfile = deps.renderUserProfile;
     _logout = deps.logout;
     _setShowDraftsOnly = deps.setShowDraftsOnly;
     _successModal = deps.successModal;
@@ -341,6 +366,36 @@ export function initNavigation(deps) {
                 navToggleBtn.setAttribute('data-i18n', 'dashboard');
                 navToggleBtn.textContent = window.t ? window.t('dashboard') : 'Dashboard';
             }
+        });
+    }
+
+    // Username click → open profile
+    if (userNameEl) {
+        userNameEl.addEventListener('click', () => {
+            if (_getIsFormDirty()) {
+                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
+            }
+            switchAppView('profile');
+        });
+    }
+
+    // Avatar click → open profile
+    if (headerAvatarInitials) {
+        headerAvatarInitials.addEventListener('click', () => {
+            if (_getIsFormDirty()) {
+                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
+            }
+            switchAppView('profile');
+        });
+    }
+
+    // Role badge click → open profile
+    if (userRoleEl) {
+        userRoleEl.addEventListener('click', () => {
+            if (_getIsFormDirty()) {
+                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
+            }
+            switchAppView('profile');
         });
     }
 }

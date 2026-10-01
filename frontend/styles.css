@@ -1084,3 +1084,310 @@ a:focus:not(:focus-visible) {
 .preview-banner-active .app-header {
     top: 52px;
 }
+
+/* ==========================================================================
+   User Profile Styles
+   ========================================================================== */
+
+.profile-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border-radius: 9999px;
+    padding: 0.35rem 0.85rem;
+}
+
+.profile-nav-btn:hover {
+    background-color: #ebf8ff;
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(43, 108, 176, 0.15);
+}
+
+.user-avatar-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+/* Profile Hero Card */
+.profile-hero-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-top: 4px solid var(--primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.profile-hero-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.profile-avatar-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.profile-avatar-large {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+    border: 3px solid #ffffff;
+    transition: transform 0.25s ease;
+}
+
+.profile-avatar-large:hover {
+    transform: scale(1.05);
+}
+
+.avatar-superadmin {
+    background: linear-gradient(135deg, #e53e3e 0%, #9b2c2c 100%);
+    box-shadow: 0 4px 14px rgba(229, 62, 62, 0.35);
+}
+
+.avatar-stateadmin {
+    background: linear-gradient(135deg, #d69e2e 0%, #b7791f 100%);
+    box-shadow: 0 4px 14px rgba(214, 158, 46, 0.35);
+}
+
+.avatar-districtadmin {
+    background: linear-gradient(135deg, #38a169 0%, #276749 100%);
+    box-shadow: 0 4px 14px rgba(56, 161, 105, 0.35);
+}
+
+.avatar-gpuser {
+    background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+    box-shadow: 0 4px 14px rgba(49, 130, 206, 0.35);
+}
+
+.profile-avatar-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #ffffff;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e2e8f0;
+}
+
+.profile-hero-info {
+    flex: 1;
+    min-width: 250px;
+}
+
+.profile-hero-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+}
+
+.profile-hero-email {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.profile-hero-jurisdiction {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    color: #2d3748;
+    background-color: #edf2f7;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid #e2e8f0;
+}
+
+.profile-hero-actions {
+    margin-left: auto;
+}
+
+/* Profile Stats Grid */
+.profile-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+.profile-stat-card {
+    background: var(--surface-color);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.stat-primary {
+    background-color: #ebf8ff;
+    color: #2b6cb0;
+}
+
+.stat-success {
+    background-color: #f0fff4;
+    color: #276749;
+}
+
+.stat-warning {
+    background-color: #fffaf0;
+    color: #dd6b20;
+}
+
+.stat-info-color {
+    background-color: #faf5ff;
+    color: #6b46c1;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.2rem;
+}
+
+/* Profile Content 2-Column Grid */
+.profile-content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.profile-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-detail-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+.profile-detail-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.profile-detail-row .detail-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.profile-detail-row .detail-value {
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: right;
+}
+
+/* ID Proof Box */
+.profile-id-proof-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.profile-id-preview-frame {
+    width: 100%;
+    min-height: 150px;
+    max-height: 220px;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e0;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0.5rem;
+}
+
+.profile-id-preview-frame img {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+    .profile-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-hero-wrapper {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .profile-hero-title-row {
+        justify-content: center;
+    }
+
+    .profile-hero-actions {
+        margin-left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+}
+

@@ -97,6 +97,8 @@ function viewUserDetails(email) {
         document.getElementById('modal-email').textContent = user.email;
         document.getElementById('modal-role').textContent = user.role;
         document.getElementById('modal-location').textContent = loc || 'N/A';
+        const modalStatus = document.getElementById('modal-status');
+        if (modalStatus) modalStatus.textContent = user.account_status || 'N/A';
 
         // Populate Image
         const img = document.getElementById('id-proof-image');

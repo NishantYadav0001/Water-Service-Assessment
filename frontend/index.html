@@ -63,6 +63,7 @@
                             <option value="GP User" data-i18n="gp_user">Gram Panchayat User</option>
                             <option value="District Admin" data-i18n="district_admin">District Admin</option>
                             <option value="State Admin" data-i18n="state_admin">State Admin</option>
+                            <option value="Super Admin" data-i18n="super_admin">Super Admin</option>
                         </select>
                     </div>
 
@@ -234,13 +235,221 @@
                 <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage
                     Users</button>
                 <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
-                <span id="current-user-role" class="role-badge"></span>
-                <span id="current-user-name">User</span>
+                <span id="current-user-role" class="role-badge" style="cursor: pointer;" title="Click to view profile"></span>
+                <span id="header-avatar-initials" class="user-avatar-mini header-avatar-clickable" title="Click to view profile">👤</span>
+                <span id="current-user-name" class="header-username-link" title="Click to view profile">User</span>
                 <button id="logout-btn" class="btn-outline btn-small" data-i18n="logout">Logout</button>
             </div>
         </header>
 
         <main class="main-content">
+            <!-- User Profile View -->
+            <div id="profile-view" class="view hidden">
+                <div class="dashboard-header flex justify-between align-center">
+                    <div>
+                        <h2 data-i18n="user_profile">User Profile</h2>
+                        <p class="text-muted" style="margin-top: 2px;">View and manage your account credentials, jurisdiction, and activity</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn-outline btn-small" id="profile-back-dashboard-btn" data-i18n="back_dashboard">← Back to Dashboard</button>
+                    </div>
+                </div>
+
+                <!-- Hero Profile Card -->
+                <div class="profile-hero-card card mt-3">
+                    <div class="profile-hero-wrapper">
+                        <div class="profile-avatar-container">
+                            <div class="profile-avatar-large" id="profile-avatar-large">
+                                <span id="profile-avatar-text">U</span>
+                            </div>
+                            <span class="profile-avatar-badge" id="profile-avatar-role-icon">👤</span>
+                        </div>
+                        <div class="profile-hero-info">
+                            <div class="profile-hero-title-row">
+                                <h3 id="profile-hero-name" style="margin: 0; font-size: 1.5rem; font-weight: 700;">User Name</h3>
+                                <span id="profile-hero-role-badge" class="role-badge">Role</span>
+                                <span id="profile-hero-status-badge" class="badge badge-approved">Active</span>
+                            </div>
+                            <p class="profile-hero-email" id="profile-hero-email">user@gmail.com</p>
+                            <p class="profile-hero-jurisdiction" id="profile-hero-jurisdiction">
+                                📍 <span id="profile-hero-jurisdiction-text">Assigned Jurisdiction: N/A</span>
+                            </p>
+                        </div>
+                        <div class="profile-hero-actions">
+                            <button type="button" class="btn-primary btn-small" id="btn-toggle-edit-profile">
+                                ✏️ <span data-i18n="edit_profile" id="edit-profile-btn-text">Edit Profile</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Role Quick Stats Grid -->
+                <div class="profile-stats-grid mt-3" id="profile-stats-grid">
+                    <div class="profile-stat-card">
+                        <div class="stat-icon-wrapper stat-primary">📊</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="profile-stat-1-val">-</span>
+                            <span class="stat-label" id="profile-stat-1-label" data-i18n="total_assessments">Total Assessments</span>
+                        </div>
+                    </div>
+                    <div class="profile-stat-card">
+                        <div class="stat-icon-wrapper stat-success">✓</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="profile-stat-2-val">-</span>
+                            <span class="stat-label" id="profile-stat-2-label" data-i18n="approved_records">Approved Records</span>
+                        </div>
+                    </div>
+                    <div class="profile-stat-card">
+                        <div class="stat-icon-wrapper stat-warning">⏳</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="profile-stat-3-val">-</span>
+                            <span class="stat-label" id="profile-stat-3-label" data-i18n="pending_reviews">Pending Reviews</span>
+                        </div>
+                    </div>
+                    <div class="profile-stat-card">
+                        <div class="stat-icon-wrapper stat-info-color">🏛️</div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="profile-stat-4-val">-</span>
+                            <span class="stat-label" id="profile-stat-4-label">Assigned Level</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Main Content: 2-Column Grid -->
+                <div class="profile-content-grid mt-3">
+                    <!-- Column 1: Account Details & Jurisdiction -->
+                    <div class="profile-column">
+                        <!-- Card 1: Account Details -->
+                        <div class="card">
+                            <h3 data-i18n="account_details">Account Details</h3>
+                            <div class="profile-detail-list">
+                                <div class="profile-detail-row">
+                                    <span class="detail-label" data-i18n="gmail_address">Gmail Address</span>
+                                    <span class="detail-value" id="profile-detail-email">user@gmail.com</span>
+                                </div>
+                                <div class="profile-detail-row">
+                                    <span class="detail-label" data-i18n="role">Role</span>
+                                    <span class="detail-value" id="profile-detail-role">GP User</span>
+                                </div>
+                                <div class="profile-detail-row">
+                                    <span class="detail-label" data-i18n="status">Account Status</span>
+                                    <span class="detail-value" id="profile-detail-status"><span class="badge badge-approved">Approved</span></span>
+                                </div>
+                                <div class="profile-detail-row">
+                                    <span class="detail-label" data-i18n="member_since">Member Since</span>
+                                    <span class="detail-value" id="profile-detail-joined">-</span>
+                                </div>
+                                <div class="profile-detail-row">
+                                    <span class="detail-label">Authentication</span>
+                                    <span class="detail-value text-success">✓ Verified Password & OTP Secure</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Jurisdiction Details -->
+                        <div class="card mt-3">
+                            <div class="flex justify-between align-center" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                                <h3 style="border-bottom: none; margin: 0; padding: 0;" data-i18n="jurisdiction_details">Assigned Jurisdiction</h3>
+                                <button type="button" class="btn-outline btn-small" id="btn-edit-jurisdiction">Edit Location</button>
+                            </div>
+                            
+                            <!-- Read-only Location View -->
+                            <div id="profile-jurisdiction-view" class="profile-detail-list">
+                                <div class="profile-detail-row">
+                                    <span class="detail-label" data-i18n="state">State</span>
+                                    <span class="detail-value" id="profile-jur-state">N/A</span>
+                                </div>
+                                <div class="profile-detail-row" id="profile-jur-district-row">
+                                    <span class="detail-label" data-i18n="district">District</span>
+                                    <span class="detail-value" id="profile-jur-district">N/A</span>
+                                </div>
+                                <div class="profile-detail-row" id="profile-jur-subdistrict-row">
+                                    <span class="detail-label" data-i18n="subdistrict">Sub-District</span>
+                                    <span class="detail-value" id="profile-jur-subdistrict">N/A</span>
+                                </div>
+                                <div class="profile-detail-row" id="profile-jur-village-row">
+                                    <span class="detail-label" data-i18n="village">Village</span>
+                                    <span class="detail-value" id="profile-jur-village">N/A</span>
+                                </div>
+                            </div>
+
+                            <!-- Edit Jurisdiction Form (Hidden by default) -->
+                            <form id="profile-edit-jurisdiction-form" class="hidden mt-2">
+                                <div class="form-grid cols-2">
+                                    <div class="form-group" id="prof-edit-state-group">
+                                        <label data-i18n="state">State</label>
+                                        <select id="prof-edit-state">
+                                            <option value="">Select State</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="prof-edit-district-group">
+                                        <label data-i18n="district">District</label>
+                                        <select id="prof-edit-district" disabled>
+                                            <option value="">Select District</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="prof-edit-subdistrict-group">
+                                        <label data-i18n="subdistrict">Sub-District</label>
+                                        <select id="prof-edit-subdistrict" disabled>
+                                            <option value="">Select Sub-District</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="prof-edit-village-group">
+                                        <label data-i18n="village">Village</label>
+                                        <select id="prof-edit-village" disabled>
+                                            <option value="">Select Village</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between align-center mt-3">
+                                    <button type="button" class="btn-outline btn-small" id="cancel-edit-jurisdiction-btn">Cancel</button>
+                                    <button type="submit" class="btn-primary btn-small" id="save-jurisdiction-btn" data-i18n="save_profile">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: ID Proof & Security Settings -->
+                    <div class="profile-column">
+                        <!-- Card 3: ID Proof -->
+                        <div class="card">
+                            <h3 data-i18n="upload_id_proof">ID Proof Document</h3>
+                            <div class="profile-id-proof-box">
+                                <div id="profile-id-proof-preview" class="profile-id-preview-frame">
+                                    <img id="profile-id-img" src="" alt="ID Proof" class="hidden">
+                                    <p id="profile-no-id-text" class="text-muted" style="margin: 1rem 0;">No ID Proof document uploaded.</p>
+                                </div>
+                                <div class="profile-id-actions mt-2" style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                                    <button type="button" class="btn-outline btn-small hidden" id="profile-view-full-id-btn">🔍 View Full Document</button>
+                                    <label class="btn-outline btn-small" style="cursor: pointer; margin: 0;">
+                                        📁 Upload New ID Proof
+                                        <input type="file" id="profile-update-id-input" accept="image/*" style="display: none;">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Change Password -->
+                        <div class="card mt-3">
+                            <h3 data-i18n="security_settings">Security Settings — Change Password</h3>
+                            <form id="profile-change-password-form">
+                                <div class="form-group">
+                                    <label for="prof-new-pwd" data-i18n="new_password">New Password</label>
+                                    <input type="password" id="prof-new-pwd" required minlength="6" placeholder="Minimum 6 characters">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label for="prof-confirm-pwd" data-i18n="confirm_password">Confirm Password</label>
+                                    <input type="password" id="prof-confirm-pwd" required minlength="6" placeholder="Re-type new password">
+                                </div>
+                                <div id="prof-pwd-error" class="text-danger hidden mt-2"></div>
+                                <div id="prof-pwd-success" class="text-success hidden mt-2"></div>
+                                <button type="submit" class="btn-primary full-width mt-3" id="prof-update-pwd-btn" data-i18n="update_password">Update Password</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- User Management View -->
             <div id="user-management-view" class="view hidden">
                 <div class="dashboard-header">
@@ -925,6 +1134,7 @@
                 <p><strong>Email:</strong> <span id="modal-email"></span></p>
                 <p><strong>Role:</strong> <span id="modal-role"></span></p>
                 <p><strong>Location:</strong> <span id="modal-location"></span></p>
+                <p><strong>Status:</strong> <span id="modal-status"></span></p>
             </div>
             <h4 style="margin-top: 1.5rem;" data-i18n="upload_id_proof">ID Proof</h4>
             <div
