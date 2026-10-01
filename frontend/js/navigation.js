@@ -40,44 +40,53 @@ let _openAssessmentForm = null;
 let _locationsLoaded = false;
 
 export function switchAppView(view) {
-    dashboardView.classList.add('hidden');
-    dashboardView.classList.remove('active');
-    assessmentView.classList.add('hidden');
-    assessmentView.classList.remove('active');
-    if (superadminView) {
-        superadminView.classList.add('hidden');
-        superadminView.classList.remove('active');
-    }
-
-    // Persist current view
-    sessionStorage.setItem('currentAppView', view);
-    if (view !== 'assessment') {
-        sessionStorage.removeItem('currentAssessmentId');
-    }
-
-    if (view === 'dashboard') {
-        // BUG-23: Reset draft filter when returning to dashboard
-        if (_setShowDraftsOnly) _setShowDraftsOnly(false);
-        const draftsBtn = document.getElementById('btn-view-drafts');
-        if (draftsBtn) {
-            draftsBtn.textContent = safeT('view_drafts', 'View Unfinished Forms');
-            draftsBtn.classList.replace('btn-secondary', 'btn-outline');
-        }
-        const recordsTitle = document.getElementById('records-card-title');
-        if (recordsTitle) recordsTitle.textContent = safeT('assessment_records', 'Assessment Records');
-
-        dashboardView.classList.remove('hidden');
-        dashboardView.classList.add('active');
-        if (_renderDashboard) _renderDashboard();
-    } else if (view === 'superadmin') {
+    console.log('switchAppView called with view:', view);
+    try {
+        dashboardView.classList.add('hidden');
+        dashboardView.classList.remove('active');
+        assessmentView.classList.add('hidden');
+        assessmentView.classList.remove('active');
         if (superadminView) {
-            superadminView.classList.remove('hidden');
-            superadminView.classList.add('active');
-            if (_renderSuperAdminDashboard) _renderSuperAdminDashboard();
+            superadminView.classList.add('hidden');
+            superadminView.classList.remove('active');
         }
-    } else {
-        assessmentView.classList.remove('hidden');
-        assessmentView.classList.add('active');
+
+        // Persist current view safely
+        try {
+            sessionStorage.setItem('currentAppView', view);
+            if (view !== 'assessment') {
+                sessionStorage.removeItem('currentAssessmentId');
+            }
+        } catch(e) {
+            console.warn('Could not save currentAppView to sessionStorage:', e.message);
+        }
+
+        if (view === 'dashboard') {
+            if (_setShowDraftsOnly) _setShowDraftsOnly(false);
+            const draftsBtn = document.getElementById('btn-view-drafts');
+            if (draftsBtn) {
+                draftsBtn.textContent = safeT('view_drafts', 'View Unfinished Forms');
+                draftsBtn.classList.replace('btn-secondary', 'btn-outline');
+            }
+            const recordsTitle = document.getElementById('records-card-title');
+            if (recordsTitle) recordsTitle.textContent = safeT('assessment_records', 'Assessment Records');
+
+            dashboardView.classList.remove('hidden');
+            dashboardView.classList.add('active');
+            if (_renderDashboard) _renderDashboard();
+        } else if (view === 'superadmin') {
+            if (superadminView) {
+                superadminView.classList.remove('hidden');
+                superadminView.classList.add('active');
+                if (_renderSuperAdminDashboard) _renderSuperAdminDashboard();
+            }
+        } else {
+            assessmentView.classList.remove('hidden');
+            assessmentView.classList.add('active');
+        }
+        console.log('switchAppView completed successfully');
+    } catch(e) {
+        console.error('switchAppView threw an error:', e.message);
     }
 }
 
