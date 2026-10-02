@@ -247,7 +247,9 @@ export function setShowDraftsOnly(val) {
     } else if (currentUser.role === 'District Admin') {
         query = query.eq('district', currentUser.district).in('status', ['Submitted', 'submitted', 'Approved', 'approved', 'Rejected', 'rejected']);
     } else if (currentUser.role === 'State Admin') {
-        query = query.eq('state', currentUser.state).neq('status', 'Draft').neq('status', 'draft');
+        query = query.eq('state', currentUser.state).in('status', ['Submitted', 'submitted', 'Approved', 'approved', 'Rejected', 'rejected']);
+    } else if (currentUser.role === 'Super Admin') {
+        query = query.in('status', ['Submitted', 'submitted', 'Approved', 'approved', 'Rejected', 'rejected']);
     }
 
     // BUG-S4: Apply location filters only when NOT already locked by role
@@ -332,7 +334,7 @@ export function setShowDraftsOnly(val) {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
         } else {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
-            if (recordStatus === 'draft' && currentUser.role !== 'GP User') {
+            if (recordStatus === 'draft' && currentUser.role !== 'GP User' && record.user_id === currentUser.email) {
                 actionBtn += `\n                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>`;
             }
         }
@@ -409,11 +411,20 @@ export function setShowDraftsOnly(val) {
                     showToast('You can only delete your own drafts.', 'error');
                     return;
                 }
-                const { error } = await supabase.from('assessments').delete().eq('id', id);
+                
+                // Use .select() to verify that the row was actually deleted.
+                // Supabase returns 0 rows without error if RLS prevents the DELETE operation.
+                const { data: deletedData, error } = await supabase.from('assessments').delete().eq('id', id).select();
                 if (error) {
                     handleSupabaseError(error, 'deleting draft');
                     return;
                 }
+                
+                if (!deletedData || deletedData.length === 0) {
+                    showToast('Could not delete draft. You may not have permission to delete drafts created by other users.', 'error');
+                    return;
+                }
+                
                 showToast(safeT('draft_deleted', 'Draft Deleted!'));
                 renderDashboard();
             }
