@@ -235,8 +235,10 @@
                 <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage
                     Users</button>
                 <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
-                <span id="current-user-role" class="role-badge" style="cursor: pointer;" title="Click to view profile"></span>
-                <span id="header-avatar-initials" class="user-avatar-mini header-avatar-clickable" title="Click to view profile">👤</span>
+                <span id="current-user-role" class="role-badge" style="cursor: pointer;"
+                    title="Click to view profile"></span>
+                <span id="header-avatar-initials" class="user-avatar-mini header-avatar-clickable"
+                    title="Click to view profile">👤</span>
                 <span id="current-user-name" class="header-username-link" title="Click to view profile">User</span>
                 <button id="logout-btn" class="btn-outline btn-small" data-i18n="logout">Logout</button>
             </div>
@@ -247,11 +249,13 @@
             <div id="profile-view" class="view hidden">
                 <div class="dashboard-header flex justify-between align-center">
                     <div>
-                        <h2 data-i18n="user_profile">User Profile</h2>
-                        <p class="text-muted" style="margin-top: 2px;">View and manage your account credentials, jurisdiction, and activity</p>
+                        <h2 data-i18n="User Profile">User Profile</h2>
+                        <p class="text-muted" style="margin-top: 2px;">View and manage your account credentials,
+                            jurisdiction, and activity</p>
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn-outline btn-small" id="profile-back-dashboard-btn" data-i18n="back_dashboard">← Back to Dashboard</button>
+                        <button class="btn-outline btn-small" id="profile-back-dashboard-btn"
+                            data-i18n="back_dashboard">← Back to Dashboard</button>
                     </div>
                 </div>
 
@@ -266,7 +270,8 @@
                         </div>
                         <div class="profile-hero-info">
                             <div class="profile-hero-title-row">
-                                <h3 id="profile-hero-name" style="margin: 0; font-size: 1.5rem; font-weight: 700;">User Name</h3>
+                                <h3 id="profile-hero-name" style="margin: 0; font-size: 1.5rem; font-weight: 700;">User
+                                    Name</h3>
                                 <span id="profile-hero-role-badge" class="role-badge">Role</span>
                                 <span id="profile-hero-status-badge" class="badge badge-approved">Active</span>
                             </div>
@@ -289,21 +294,24 @@
                         <div class="stat-icon-wrapper stat-primary">📊</div>
                         <div class="stat-info">
                             <span class="stat-value" id="profile-stat-1-val">-</span>
-                            <span class="stat-label" id="profile-stat-1-label" data-i18n="total_assessments">Total Assessments</span>
+                            <span class="stat-label" id="profile-stat-1-label" data-i18n="total_assessments">Total
+                                Assessments</span>
                         </div>
                     </div>
                     <div class="profile-stat-card">
                         <div class="stat-icon-wrapper stat-success">✓</div>
                         <div class="stat-info">
                             <span class="stat-value" id="profile-stat-2-val">-</span>
-                            <span class="stat-label" id="profile-stat-2-label" data-i18n="approved_records">Approved Records</span>
+                            <span class="stat-label" id="profile-stat-2-label" data-i18n="approved_records">Approved
+                                Records</span>
                         </div>
                     </div>
                     <div class="profile-stat-card">
                         <div class="stat-icon-wrapper stat-warning">⏳</div>
                         <div class="stat-info">
                             <span class="stat-value" id="profile-stat-3-val">-</span>
-                            <span class="stat-label" id="profile-stat-3-label" data-i18n="pending_reviews">Pending Reviews</span>
+                            <span class="stat-label" id="profile-stat-3-label" data-i18n="pending_reviews">Pending
+                                Reviews</span>
                         </div>
                     </div>
                     <div class="profile-stat-card">
@@ -333,7 +341,8 @@
                                 </div>
                                 <div class="profile-detail-row">
                                     <span class="detail-label" data-i18n="status">Account Status</span>
-                                    <span class="detail-value" id="profile-detail-status"><span class="badge badge-approved">Approved</span></span>
+                                    <span class="detail-value" id="profile-detail-status"><span
+                                            class="badge badge-approved">Approved</span></span>
                                 </div>
                                 <div class="profile-detail-row">
                                     <span class="detail-label" data-i18n="member_since">Member Since</span>
@@ -348,11 +357,14 @@
 
                         <!-- Card 2: Jurisdiction Details -->
                         <div class="card mt-3">
-                            <div class="flex justify-between align-center" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                                <h3 style="border-bottom: none; margin: 0; padding: 0;" data-i18n="jurisdiction_details">Assigned Jurisdiction</h3>
-                                <button type="button" class="btn-outline btn-small" id="btn-edit-jurisdiction">Edit Location</button>
+                            <div class="flex justify-between align-center"
+                                style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                                <h3 style="border-bottom: none; margin: 0; padding: 0;"
+                                    data-i18n="jurisdiction_details">Assigned Jurisdiction</h3>
+                                <button type="button" class="btn-outline btn-small" id="btn-edit-jurisdiction">Edit
+                                    Location</button>
                             </div>
-                            
+
                             <!-- Read-only Location View -->
                             <div id="profile-jurisdiction-view" class="profile-detail-list">
                                 <div class="profile-detail-row">
@@ -402,8 +414,10 @@
                                     </div>
                                 </div>
                                 <div class="flex justify-between align-center mt-3">
-                                    <button type="button" class="btn-outline btn-small" id="cancel-edit-jurisdiction-btn">Cancel</button>
-                                    <button type="submit" class="btn-primary btn-small" id="save-jurisdiction-btn" data-i18n="save_profile">Save Changes</button>
+                                    <button type="button" class="btn-outline btn-small"
+                                        id="cancel-edit-jurisdiction-btn">Cancel</button>
+                                    <button type="submit" class="btn-primary btn-small" id="save-jurisdiction-btn"
+                                        data-i18n="save_profile">Save Changes</button>
                                 </div>
                             </form>
                         </div>
@@ -417,13 +431,17 @@
                             <div class="profile-id-proof-box">
                                 <div id="profile-id-proof-preview" class="profile-id-preview-frame">
                                     <img id="profile-id-img" src="" alt="ID Proof" class="hidden">
-                                    <p id="profile-no-id-text" class="text-muted" style="margin: 1rem 0;">No ID Proof document uploaded.</p>
+                                    <p id="profile-no-id-text" class="text-muted" style="margin: 1rem 0;">No ID Proof
+                                        document uploaded.</p>
                                 </div>
-                                <div class="profile-id-actions mt-2" style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
-                                    <button type="button" class="btn-outline btn-small hidden" id="profile-view-full-id-btn">🔍 View Full Document</button>
+                                <div class="profile-id-actions mt-2"
+                                    style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+                                    <button type="button" class="btn-outline btn-small hidden"
+                                        id="profile-view-full-id-btn">🔍 View Full Document</button>
                                     <label class="btn-outline btn-small" style="cursor: pointer; margin: 0;">
                                         📁 Upload New ID Proof
-                                        <input type="file" id="profile-update-id-input" accept="image/*" style="display: none;">
+                                        <input type="file" id="profile-update-id-input" accept="image/*"
+                                            style="display: none;">
                                     </label>
                                 </div>
                             </div>
@@ -435,15 +453,18 @@
                             <form id="profile-change-password-form">
                                 <div class="form-group">
                                     <label for="prof-new-pwd" data-i18n="new_password">New Password</label>
-                                    <input type="password" id="prof-new-pwd" required minlength="6" placeholder="Minimum 6 characters">
+                                    <input type="password" id="prof-new-pwd" required minlength="6"
+                                        placeholder="Minimum 6 characters">
                                 </div>
                                 <div class="form-group mt-2">
                                     <label for="prof-confirm-pwd" data-i18n="confirm_password">Confirm Password</label>
-                                    <input type="password" id="prof-confirm-pwd" required minlength="6" placeholder="Re-type new password">
+                                    <input type="password" id="prof-confirm-pwd" required minlength="6"
+                                        placeholder="Re-type new password">
                                 </div>
                                 <div id="prof-pwd-error" class="text-danger hidden mt-2"></div>
                                 <div id="prof-pwd-success" class="text-success hidden mt-2"></div>
-                                <button type="submit" class="btn-primary full-width mt-3" id="prof-update-pwd-btn" data-i18n="update_password">Update Password</button>
+                                <button type="submit" class="btn-primary full-width mt-3" id="prof-update-pwd-btn"
+                                    data-i18n="update_password">Update Password</button>
                             </form>
                         </div>
                     </div>

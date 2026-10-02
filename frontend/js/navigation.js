@@ -1,16 +1,16 @@
 /**
- * Navigation — view switching, app/auth layout toggling, and nav guards.
+ * Navigation â€” view switching, app/auth layout toggling, and nav guards.
  *
  * Exports:
- *   switchAppView(view)  — toggle between 'dashboard', 'assessment', 'superadmin'
- *   showApp()            — reveal the main app layout after login
- *   showAuth()           — reveal the auth/login layout
- *   initNavigation(deps) — wire up navigation event listeners
+ *   switchAppView(view)  â€” toggle between 'dashboard', 'assessment', 'superadmin'
+ *   showApp()            â€” reveal the main app layout after login
+ *   showAuth()           â€” reveal the auth/login layout
+ *   initNavigation(deps) â€” wire up navigation event listeners
  */
 
 import { safeT } from './utils.js';
 
-// BUG-C4: Centralized Super Admin role check — handles both 'SuperAdmin' and 'Super Admin'
+// BUG-C4: Centralized Super Admin role check â€” handles both 'SuperAdmin' and 'Super Admin'
 function isSuperAdmin(role) {
     if (!role) return false;
     const r = String(role).toLowerCase().replace(/\s+/g, '');
@@ -45,64 +45,20 @@ let _openAssessmentForm = null;
 let _locationsLoaded = false;
 
 export function switchAppView(view) {
-<<<<<<< HEAD
-    dashboardView.classList.add('hidden');
-    dashboardView.classList.remove('active');
-    assessmentView.classList.add('hidden');
-    assessmentView.classList.remove('active');
-    if (superadminView) {
-        superadminView.classList.add('hidden');
-        superadminView.classList.remove('active');
-    }
-    if (profileView) {
-        profileView.classList.add('hidden');
-        profileView.classList.remove('active');
-    }
-
-    // Persist current view
-    sessionStorage.setItem('currentAppView', view);
-    if (view !== 'assessment') {
-        sessionStorage.removeItem('currentAssessmentId');
-    }
-
-    if (view === 'dashboard') {
-        // BUG-23: Reset draft filter when returning to dashboard
-        if (_setShowDraftsOnly) _setShowDraftsOnly(false);
-        const draftsBtn = document.getElementById('btn-view-drafts');
-        if (draftsBtn) {
-            draftsBtn.textContent = safeT('view_drafts', 'View Unfinished Forms');
-            draftsBtn.classList.replace('btn-secondary', 'btn-outline');
-        }
-        const recordsTitle = document.getElementById('records-card-title');
-        if (recordsTitle) recordsTitle.textContent = safeT('assessment_records', 'Assessment Records');
-
-        dashboardView.classList.remove('hidden');
-        dashboardView.classList.add('active');
-        if (_renderDashboard) _renderDashboard();
-    } else if (view === 'superadmin') {
-=======
     console.log('switchAppView called with view:', view);
     try {
         dashboardView.classList.add('hidden');
         dashboardView.classList.remove('active');
         assessmentView.classList.add('hidden');
         assessmentView.classList.remove('active');
->>>>>>> cd20fbf307affa61cb07ccee16d58df92bbfce46
         if (superadminView) {
             superadminView.classList.add('hidden');
             superadminView.classList.remove('active');
         }
-<<<<<<< HEAD
-    } else if (view === 'profile') {
         if (profileView) {
-            profileView.classList.remove('hidden');
-            profileView.classList.add('active');
-            if (_renderUserProfile) _renderUserProfile();
+            profileView.classList.add('hidden');
+            profileView.classList.remove('active');
         }
-    } else {
-        assessmentView.classList.remove('hidden');
-        assessmentView.classList.add('active');
-=======
 
         // Persist current view safely
         try {
@@ -115,6 +71,7 @@ export function switchAppView(view) {
         }
 
         if (view === 'dashboard') {
+            // BUG-23: Reset draft filter when returning to dashboard
             if (_setShowDraftsOnly) _setShowDraftsOnly(false);
             const draftsBtn = document.getElementById('btn-view-drafts');
             if (draftsBtn) {
@@ -133,6 +90,12 @@ export function switchAppView(view) {
                 superadminView.classList.add('active');
                 if (_renderSuperAdminDashboard) _renderSuperAdminDashboard();
             }
+        } else if (view === 'profile') {
+            if (profileView) {
+                profileView.classList.remove('hidden');
+                profileView.classList.add('active');
+                if (_renderUserProfile) _renderUserProfile();
+            }
         } else {
             assessmentView.classList.remove('hidden');
             assessmentView.classList.add('active');
@@ -140,7 +103,6 @@ export function switchAppView(view) {
         console.log('switchAppView completed successfully');
     } catch(e) {
         console.error('switchAppView threw an error:', e.message);
->>>>>>> cd20fbf307affa61cb07ccee16d58df92bbfce46
     }
 }
 
@@ -160,14 +122,7 @@ export async function showApp() {
 
     document.getElementById('current-user-name').textContent = currentUser.email.split('@')[0] || currentUser.email;
 
-    // Set avatar initial or emoji
-    if (headerAvatarInitials) {
-        if (isSuperAdmin(currentUser.role)) headerAvatarInitials.textContent = '👑';
-        else if (currentUser.role === 'State Admin') headerAvatarInitials.textContent = '🏛️';
-        else if (currentUser.role === 'District Admin') headerAvatarInitials.textContent = '🏢';
-        else headerAvatarInitials.textContent = '👤';
-    }
-
+    
     // MISS-6: Display role badge next to username
     const roleBadge = document.getElementById('current-user-role');
     if (roleBadge) {
@@ -281,7 +236,7 @@ export function showAuth() {
 /**
  * Wire up all navigation-related event listeners.
  *
- * @param {Object} deps — injected dependencies to avoid circular imports
+ * @param {Object} deps â€” injected dependencies to avoid circular imports
  * @param {Function} deps.getCurrentUser
  * @param {Function} deps.getIsFormDirty
  * @param {Function} deps.renderDashboard
@@ -333,14 +288,14 @@ export function initNavigation(deps) {
         }
     });
 
-    // Language change → re-render dashboard
+    // Language change â†’ re-render dashboard
     document.addEventListener('languageChanged', () => {
         if (!dashboardView.classList.contains('hidden')) {
             _renderDashboard();
         }
     });
 
-    // Auth view toggle: Login ↔ Register
+    // Auth view toggle: Login â†” Register
     document.getElementById('show-register').addEventListener('click', (e) => {
         e.preventDefault();
 
@@ -398,7 +353,7 @@ export function initNavigation(deps) {
         });
     }
 
-    // Nav toggle (Manage Users ↔ Dashboard)
+    // Nav toggle (Manage Users â†” Dashboard)
     if (navToggleBtn) {
         navToggleBtn.addEventListener('click', () => {
             if (_getIsFormDirty()) {
@@ -417,29 +372,9 @@ export function initNavigation(deps) {
         });
     }
 
-    // Username click → open profile
+    // Username click â†’ open profile
     if (userNameEl) {
         userNameEl.addEventListener('click', () => {
-            if (_getIsFormDirty()) {
-                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
-            }
-            switchAppView('profile');
-        });
-    }
-
-    // Avatar click → open profile
-    if (headerAvatarInitials) {
-        headerAvatarInitials.addEventListener('click', () => {
-            if (_getIsFormDirty()) {
-                if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
-            }
-            switchAppView('profile');
-        });
-    }
-
-    // Role badge click → open profile
-    if (userRoleEl) {
-        userRoleEl.addEventListener('click', () => {
             if (_getIsFormDirty()) {
                 if (!confirm('You have unsaved changes. Are you sure you want to leave? Your filled data may be lost.')) return;
             }
