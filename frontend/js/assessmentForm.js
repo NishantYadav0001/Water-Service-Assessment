@@ -383,8 +383,14 @@ async function loadAssessmentData(id) {
 // --- Public API ---
 
 export async function openAssessmentForm(id = null) {
+    console.log('openAssessmentForm START, id:', id);
     _setIsFormDirty(false);
-    sessionStorage.setItem('currentAssessmentId', id || 'new');
+    try {
+        sessionStorage.setItem('currentAssessmentId', id || 'new');
+        console.log('sessionStorage set currentAssessmentId');
+    } catch(e) {
+        console.error('sessionStorage threw in openAssessmentForm:', e.message);
+    }
     _switchAppView('assessment');
     document.getElementById('assessment-form').reset();
 

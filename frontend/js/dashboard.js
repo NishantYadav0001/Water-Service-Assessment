@@ -316,6 +316,9 @@ export async function renderDashboard() {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="review">${safeT('review', 'Review')}</button>`;
         } else {
             actionBtn = `<button class="btn-outline btn-small view-record" data-id="${safeId}" data-i18n="view">${safeT('view', 'View')}</button>`;
+            if (recordStatus === 'draft' && currentUser.role !== 'GP User') {
+                actionBtn += `\n                    <button class="btn-outline btn-small delete-record text-danger" style="margin-left:5px;" data-id="${safeId}" data-i18n="delete">${safeT('delete', 'Delete')}</button>`;
+            }
         }
 
         // Logic for date display
@@ -368,26 +371,25 @@ export async function renderDashboard() {
     document.querySelectorAll('.delete-record').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const currentUser = _getCurrentUser();
-            // BUG-C6: Only GP Users can delete, and only Draft assessments
-            if (!currentUser || currentUser.role !== 'GP User') {
-                showToast('Only GP Users can delete draft assessments.', 'error');
-                return;
-            }
+            const isAdmin = currentUser && currentUser.role !== 'GP User';
+            
+            if (!currentUser) return;
+
             // BUG-02 + BUG-05: Safe translations + database delete
             if (confirm(safeT('delete_confirm', 'Are you sure you want to delete this draft?'))) {
                 const id = e.target.getAttribute('data-id');
-                // BUG-C6: Double-check status is Draft and user owns the record
+                // Double-check status is Draft and user owns the record (or is Admin)
                 const { data: record, error: fetchErr } = await supabase
                     .from('assessments').select('status, user_id').eq('id', id).single();
                 if (fetchErr || !record) {
                     handleSupabaseError(fetchErr, 'verifying draft');
                     return;
                 }
-                if (record.status !== 'Draft') {
+                if (record.status.toLowerCase() !== 'draft') {
                     showToast('Only draft assessments can be deleted.', 'error');
                     return;
                 }
-                if (record.user_id !== currentUser.email) {
+                if (!isAdmin && record.user_id !== currentUser.email) {
                     showToast('You can only delete your own drafts.', 'error');
                     return;
                 }
@@ -420,9 +422,12 @@ export function initDashboard(deps) {
     const btnNewForm = document.getElementById('btn-new-form');
     if (btnNewForm) {
         btnNewForm.addEventListener('click', async () => {
+            console.log('btn-new-form clicked!');
             const currentUser = _getCurrentUser();
+            console.log('currentUser email:', currentUser?.email);
             // BUG-09: user-scoped draft count, now querying Supabase
             const { data: drafts, error } = await supabase.from('assessments').select('id').eq('user_id', currentUser.email).eq('status', 'Draft');
+            console.log('drafts count query result:', drafts?.length, error);
             if (error) {
                 handleSupabaseError(error, 'checking draft count');
             }
@@ -431,6 +436,7 @@ export function initDashboard(deps) {
                 showToast('You can only have up to 2 unfinished drafts. Please submit or delete an existing draft before starting a new one.', 'error');
                 return;
             }
+            console.log('Calling _openAssessmentForm(null)');
             _openAssessmentForm(null);
         });
     }
