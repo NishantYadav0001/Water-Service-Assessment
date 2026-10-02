@@ -235,10 +235,7 @@
                 <button id="nav-toggle-btn" class="btn-primary btn-small hidden" data-i18n="manage_users">Manage
                     Users</button>
                 <select id="languageSelectorApp" class="lang-select" aria-label="Language"></select>
-                <span id="current-user-role" class="role-badge" style="cursor: pointer;"
-                    title="Click to view profile"></span>
-                <span id="header-avatar-initials" class="user-avatar-mini header-avatar-clickable"
-                    title="Click to view profile">👤</span>
+                <span id="current-user-role" class="role-badge"></span>
                 <span id="current-user-name" class="header-username-link" title="Click to view profile">User</span>
                 <button id="logout-btn" class="btn-outline btn-small" data-i18n="logout">Logout</button>
             </div>
@@ -447,26 +444,7 @@
                             </div>
                         </div>
 
-                        <!-- Card 4: Change Password -->
-                        <div class="card mt-3">
-                            <h3 data-i18n="security_settings">Security Settings — Change Password</h3>
-                            <form id="profile-change-password-form">
-                                <div class="form-group">
-                                    <label for="prof-new-pwd" data-i18n="new_password">New Password</label>
-                                    <input type="password" id="prof-new-pwd" required minlength="6"
-                                        placeholder="Minimum 6 characters">
-                                </div>
-                                <div class="form-group mt-2">
-                                    <label for="prof-confirm-pwd" data-i18n="confirm_password">Confirm Password</label>
-                                    <input type="password" id="prof-confirm-pwd" required minlength="6"
-                                        placeholder="Re-type new password">
-                                </div>
-                                <div id="prof-pwd-error" class="text-danger hidden mt-2"></div>
-                                <div id="prof-pwd-success" class="text-success hidden mt-2"></div>
-                                <button type="submit" class="btn-primary full-width mt-3" id="prof-update-pwd-btn"
-                                    data-i18n="update_password">Update Password</button>
-                            </form>
-                        </div>
+                        
                     </div>
                 </div>
             </div>

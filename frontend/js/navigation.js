@@ -27,8 +27,7 @@ const superadminView = document.getElementById('user-management-view');
 const profileView = document.getElementById('profile-view');
 const navToggleBtn = document.getElementById('nav-toggle-btn');
 const userNameEl = document.getElementById('current-user-name');
-const userRoleEl = document.getElementById('current-user-role');
-const headerAvatarInitials = document.getElementById('header-avatar-initials');
+
 
 // These will be injected via initNavigation()
 let _getCurrentUser = null;

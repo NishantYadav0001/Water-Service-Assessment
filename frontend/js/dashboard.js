@@ -34,189 +34,205 @@ export function setShowDraftsOnly(val) {
     showDraftsOnly = val;
 }
 
-export function resetFilterLock() {
-    filterLockedForRole = false;
-}
-
-/**
- * Export currently filtered records as a CSV download.
- */
-function exportRecordsToCSV() {
-    if (allFilteredRecords.length === 0) {
-        showToast(safeT('no_records', 'No records to export'), 'error');
-        return;
-    }
-
-    const headers = ['Date', 'Village', 'Sub-District', 'District', 'State', 'Status'];
-    const rows = allFilteredRecords.map(record => {
-        let displayDate = '';
-        if (record.payload && record.payload.date_discussion) {
-            displayDate = record.payload.date_discussion;
-        } else if (record.createdAt) {
-            displayDate = new Date(record.createdAt).toLocaleDateString();
-        }
-        return [
-            displayDate,
-            record.village || '',
-            record.sub_district || '',
-            record.district || '',
-            record.state || '',
-            record.status
-        ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
-    });
-
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `assessment_records_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast(safeT('export_success', 'CSV exported successfully!'));
-}
-
-/**
- * Export a single assessment record as CSV.
- */
-function exportSingleRecordToCSV(recordId) {
-    const record = allFilteredRecords.find(r => r.id === recordId);
-    if (!record) {
-        showToast('Record not found', 'error');
-        return;
-    }
-
-    // Build comprehensive CSV from the record's payload
-    const headers = ['Field', 'Value'];
-    const rows = [];
-
-    // Basic info
-    rows.push(['Record ID', record.id]);
-    rows.push(['Status', record.status]);
-    rows.push(['Village', record.village || '']);
-    rows.push(['Sub-District', record.sub_district || '']);
-    rows.push(['District', record.district || '']);
-    rows.push(['State', record.state || '']);
-    rows.push(['Created At', record.createdAt || '']);
-
-    // All payload fields
-    if (record.payload) {
-        Object.entries(record.payload).forEach(([key, value]) => {
-            rows.push([key, String(value ?? '')]);
-        });
-    }
-
-    const csvRows = rows.map(row =>
-        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-    );
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const villageName = (record.village || 'record').replace(/[^a-zA-Z0-9]/g, '_');
-    link.href = url;
-    link.download = `assessment_${villageName}_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showToast(safeT('export_success', 'Record exported successfully!'));
-}
-
-/**
- * Render pagination controls based on current state.
- */
-function renderPagination(totalRecords) {
-    const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
-    const prevBtn = document.getElementById('pagination-prev');
-    const nextBtn = document.getElementById('pagination-next');
-    const info = document.getElementById('pagination-info');
-    const controls = document.getElementById('pagination-controls');
-
-    if (!controls) return;
-
-    if (totalRecords <= PAGE_SIZE) {
-        controls.style.display = 'none';
-        return;
-    }
-
-    controls.style.display = 'flex';
-    info.textContent = `Page ${currentPage} of ${totalPages}`;
-    prevBtn.disabled = currentPage <= 1;
-    nextBtn.disabled = currentPage >= totalPages;
-}
-
-export async function renderDashboard() {
-    const tbody = document.querySelector('#records-table tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    const currentUser = _getCurrentUser();
-    if (!currentUser) return;
-
-    // Show filter card and admin columns for admins, hide for GP Users
-    const filterCard = document.querySelector('.filter-card');
-    const adminCols = document.querySelectorAll('th[data-i18n="submitted_by"]');
-    
-    if (filterCard) {
-        filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
-    }
-    
-    adminCols.forEach(col => {
-        col.style.display = (currentUser.role === 'GP User') ? 'none' : '';
-    });
-
-    // Role-based filter locking (run ONCE per login, not on every render)
-    if (!filterLockedForRole && !_isLockingFilters && currentUser.role !== 'GP User') {
-        _isLockingFilters = true; // Prevent re-entry from change event listeners
+    export function resetFilterLock() {
+        filterLockedForRole = false;
         const filterStateEl = document.getElementById('filter-state');
         const filterDistEl = document.getElementById('filter-district');
+        const filterSubdistEl = document.getElementById('filter-subdistrict');
+        const filterVillEl = document.getElementById('filter-village');
+        if (filterStateEl) { filterStateEl.disabled = false; filterStateEl.value = ''; }
+        if (filterDistEl) { filterDistEl.disabled = true; filterDistEl.value = ''; }
+        if (filterSubdistEl) { filterSubdistEl.disabled = true; filterSubdistEl.value = ''; }
+        if (filterVillEl) { filterVillEl.disabled = true; filterVillEl.value = ''; }
+    }
 
-        // Wait for the state dropdown to have options (location data loaded)
-        let waited = 0;
-        while (filterStateEl.options.length <= 1 && waited < 5000) {
-            await new Promise(r => setTimeout(r, 100));
-            waited += 100;
+    /**
+     * Export currently filtered records as a CSV download.
+     */
+    function exportRecordsToCSV() {
+        if (allFilteredRecords.length === 0) {
+            showToast(safeT('no_records', 'No records to export'), 'error');
+            return;
         }
 
-        // Only proceed if dropdown now has options
-        if (filterStateEl.options.length > 1) {
-            if (currentUser.role === 'State Admin') {
-                if (currentUser.state) {
-                    filterStateEl.value = currentUser.state;
-                    if (filterStateEl.value === currentUser.state) {
-                        filterStateEl.disabled = true;
-                        filterStateEl.dispatchEvent(new Event('change'));
-                        filterLockedForRole = true;
-                    }
-                }
-            } else if (currentUser.role === 'District Admin') {
-                if (currentUser.state) {
-                    filterStateEl.value = currentUser.state;
-                    if (filterStateEl.value === currentUser.state) {
-                        filterStateEl.disabled = true;
-                        filterStateEl.dispatchEvent(new Event('change'));
+        const headers = ['Date', 'Village', 'Sub-District', 'District', 'State', 'Status'];
+        const rows = allFilteredRecords.map(record => {
+            let displayDate = '';
+            if (record.payload && record.payload.date_discussion) {
+                displayDate = record.payload.date_discussion;
+            } else if (record.createdAt) {
+                displayDate = new Date(record.createdAt).toLocaleDateString();
+            }
+            return [
+                displayDate,
+                record.village || '',
+                record.sub_district || '',
+                record.district || '',
+                record.state || '',
+                record.status
+            ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
+        });
 
-                        // Wait for district dropdown to populate from the cascade
-                        let distWait = 0;
-                        while (filterDistEl.options.length <= 1 && distWait < 3000) {
-                            await new Promise(r => setTimeout(r, 50));
-                            distWait += 50;
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `assessment_records_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast(safeT('export_success', 'CSV exported successfully!'));
+    }
+
+    /**
+     * Export a single assessment record as CSV.
+     */
+    function exportSingleRecordToCSV(recordId) {
+        const record = allFilteredRecords.find(r => r.id === recordId);
+        if (!record) {
+            showToast('Record not found', 'error');
+            return;
+        }
+
+        // Build comprehensive CSV from the record's payload
+        const headers = ['Field', 'Value'];
+        const rows = [];
+
+        // Basic info
+        rows.push(['Record ID', record.id]);
+        rows.push(['Status', record.status]);
+        rows.push(['Village', record.village || '']);
+        rows.push(['Sub-District', record.sub_district || '']);
+        rows.push(['District', record.district || '']);
+        rows.push(['State', record.state || '']);
+        rows.push(['Created At', record.createdAt || '']);
+
+        // All payload fields
+        if (record.payload) {
+            Object.entries(record.payload).forEach(([key, value]) => {
+                rows.push([key, String(value ?? '')]);
+            });
+        }
+
+        const csvRows = rows.map(row =>
+            row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        );
+        const csvContent = [headers.join(','), ...csvRows].join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const villageName = (record.village || 'record').replace(/[^a-zA-Z0-9]/g, '_');
+        link.href = url;
+        link.download = `assessment_${villageName}_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast(safeT('export_success', 'Record exported successfully!'));
+    }
+
+    /**
+     * Render pagination controls based on current state.
+     */
+    function renderPagination(totalRecords) {
+        const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+        const prevBtn = document.getElementById('pagination-prev');
+        const nextBtn = document.getElementById('pagination-next');
+        const info = document.getElementById('pagination-info');
+        const controls = document.getElementById('pagination-controls');
+
+        if (!controls) return;
+
+        if (totalRecords <= PAGE_SIZE) {
+            controls.style.display = 'none';
+            return;
+        }
+
+        controls.style.display = 'flex';
+        info.textContent = `Page ${currentPage} of ${totalPages}`;
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+    }
+
+    export async function renderDashboard() {
+        const tbody = document.querySelector('#records-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        const currentUser = _getCurrentUser();
+        if (!currentUser) return;
+
+        // Show filter card and admin columns for admins, hide for GP Users
+        const filterCard = document.querySelector('.filter-card');
+        const adminCols = document.querySelectorAll('th[data-i18n="submitted_by"]');
+        
+        if (filterCard) {
+            filterCard.style.display = (currentUser.role === 'GP User') ? 'none' : '';
+        }
+        
+        adminCols.forEach(col => {
+            col.style.display = (currentUser.role === 'GP User') ? 'none' : '';
+        });
+
+        // Role-based filter locking (run ONCE per login, not on every render)
+        if (!filterLockedForRole && !_isLockingFilters && currentUser.role !== 'GP User') {
+            _isLockingFilters = true; // Prevent re-entry from change event listeners
+            const filterStateEl = document.getElementById('filter-state');
+            const filterDistEl = document.getElementById('filter-district');
+
+            // Wait for the state dropdown to have options (location data loaded)
+            let waited = 0;
+            while (filterStateEl.options.length <= 1 && waited < 5000) {
+                await new Promise(r => setTimeout(r, 100));
+                waited += 100;
+            }
+
+            // Only proceed if dropdown now has options
+            if (filterStateEl.options.length > 1) {
+                // Ensure unlocked by default before applying specific role locks
+                filterStateEl.disabled = false;
+                
+                if (currentUser.role === 'State Admin') {
+                    if (currentUser.state) {
+                        filterStateEl.value = currentUser.state;
+                        if (filterStateEl.value === currentUser.state) {
+                            filterStateEl.disabled = true;
+                            filterStateEl.dispatchEvent(new Event('change'));
                         }
+                    }
+                } else if (currentUser.role === 'District Admin') {
+                    if (currentUser.state) {
+                        filterStateEl.value = currentUser.state;
+                        if (filterStateEl.value === currentUser.state) {
+                            filterStateEl.disabled = true;
+                            filterStateEl.dispatchEvent(new Event('change'));
 
-                        if (currentUser.district) {
-                            filterDistEl.value = currentUser.district;
-                            if (filterDistEl.value === currentUser.district) {
-                                filterDistEl.disabled = true;
-                                filterDistEl.dispatchEvent(new Event('change'));
-                                filterLockedForRole = true;
+                            // Wait for district dropdown to populate from the cascade
+                            let distWait = 0;
+                            while (filterDistEl.options.length <= 1 && distWait < 3000) {
+                                await new Promise(r => setTimeout(r, 50));
+                                distWait += 50;
+                            }
+
+                            if (currentUser.district) {
+                                filterDistEl.value = currentUser.district;
+                                if (filterDistEl.value === currentUser.district) {
+                                    filterDistEl.disabled = true;
+                                    filterDistEl.dispatchEvent(new Event('change'));
+                                }
                             }
                         }
                     }
+                } else if (currentUser.role === 'Super Admin') {
+                    // For Super Admin, just ensure the fields are enabled and clean
+                    filterStateEl.value = '';
+                    filterStateEl.dispatchEvent(new Event('change'));
                 }
+                
+                // Mark as locked/processed for ALL admin roles (including Super Admin) so we don't repeat this
+                filterLockedForRole = true;
             }
+            _isLockingFilters = false;
+            // If filterLockedForRole is still false, it will retry on next renderDashboard call
         }
-        _isLockingFilters = false;
-        // If filterLockedForRole is still false, it will retry on next renderDashboard call
-    }
 
     // Fetch assessments from Supabase
     let query = supabase.from('assessments').select('*');
